@@ -1,0 +1,71 @@
+services:
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-memorise_development}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-password}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./packages/backend
+    command: bash -c "rm -f tmp/pids/server.pid && bin/rails server -b 0.0.0.0 -p 3100"
+    volumes:
+      - ./packages/backend:/app
+      - bundle-cache:/usr/local/bundle
+    ports:
+      - "3100:3100"
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-root}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+      RAILS_ENV: development
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3200}
+      LOCAL_FRONTEND_URL: ${LOCAL_FRONTEND_URL:-http://localhost:3200}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Solid Queue ワーカー。
+  # Solid Queue 導入後（bin/rails solid_queue:install && db:migrate 実施後）に
+  # 下のコメントを外して有効化する。初期スケルトンでは未使用。
+  # worker:
+  #   build: ./packages/backend
+  #   command: bundle exec rake solid_queue:start
+  #   volumes:
+  #     - ./packages/backend:/app
+  #     - bundle-cache:/usr/local/bundle
+  #   environment:
+  #     DATABASE_HOST: db
+  #     DATABASE_USERNAME: ${DATABASE_USERNAME:-root}
+  #     DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+  #     RAILS_ENV: development
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+
+  frontend:
+    build: ./packages/frontend
+    command: sh -c "npm install && npm run dev"
+    volumes:
+      - ./packages/frontend:/app
+      - frontend-node-modules:/app/node_modules
+    ports:
+      - "3200:3200"
+    environment:
+      NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://localhost:3100/graphql}
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
+  bundle-cache:
+  frontend-node-modules:

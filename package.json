@@ -1,0 +1,17 @@
+{
+  "name": "memorise",
+  "version": "2.0.0",
+  "private": true,
+  "description": "MemoRise v2 monorepo (frontend + backend)",
+  "workspaces": [
+    "packages/frontend"
+  ],
+  "scripts": {
+    "dev:front": "npm --prefix packages/frontend run dev",
+    "build:front": "npm --prefix packages/frontend run build",
+    "codegen": "npm --prefix packages/frontend run codegen",
+    "docker:up": "docker compose up",
+    "docker:build": "docker compose build",
+    "docker:down": "docker compose down"
+  }
+}
