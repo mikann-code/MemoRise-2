@@ -6,8 +6,9 @@
     "dev": "next dev -p 3200",
     "build": "next build",
     "start": "next start -p 3200",
-    "lint": "next lint",
-    "codegen": "graphql-codegen --config codegen.ts"
+    "lint": "eslint .",
+    "codegen": "graphql-codegen --config codegen.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@apollo/client": "^4.0.0",
@@ -27,6 +28,7 @@
     "@graphql-codegen/cli": "^5.0.0",
     "@graphql-codegen/client-preset": "^4.0.0",
     "@eslint/eslintrc": "^3.0.0",
+    "@playwright/test": "^1.49.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
