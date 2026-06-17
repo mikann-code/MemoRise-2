@@ -6,7 +6,7 @@
     "dev": "next dev -p 3200",
     "build": "next build",
     "start": "next start -p 3200",
-    "lint": "next lint",
+    "lint": "eslint .",
     "codegen": "graphql-codegen --config codegen.ts",
     "e2e": "playwright test"
   },

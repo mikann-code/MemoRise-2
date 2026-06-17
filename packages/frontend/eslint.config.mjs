@@ -1,14 +1,9 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import next from "eslint-config-next/core-web-vitals";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({ baseDirectory: __dirname });
-
+// Next.js 16 の eslint-config-next はフラットコンフィグ配列を直接エクスポートする。
+// （次の typescript 設定も core-web-vitals 側に含まれる）
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...next,
   {
     ignores: ["src/gql/**", ".next/**", "node_modules/**"],
   },
