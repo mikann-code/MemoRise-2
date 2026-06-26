@@ -11,7 +11,6 @@ DB をリセットしてください。
 ```bash
 rm -Rf packages/backend/db/schema.rb
 docker compose exec backend rails db:drop db:create db:migrate 2>&1
-docker compose restart worker
 ```
 
 ## 補足
