@@ -21,4 +21,8 @@ RSpec.configure do |config|
   config.filter_rails_from_backtrace!
 
   config.include FactoryBot::Syntax::Methods
+
+  # request spec の既定ホスト（www.example.com）は Rails 8.1 既定の
+  # config.hosts（.localhost / .test）に弾かれ 403 になる。許可ホストに固定する。
+  config.before(:each, type: :request) { host! "localhost" }
 end

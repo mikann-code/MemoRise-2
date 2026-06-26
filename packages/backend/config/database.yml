@@ -1,11 +1,11 @@
 default: &default
-  adapter: mysql2
-  encoding: utf8mb4
-  collation: utf8mb4_0900_ai_ci
+  adapter: postgresql
+  encoding: unicode
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  username: <%= ENV.fetch("DATABASE_USERNAME", "root") %>
+  username: <%= ENV.fetch("DATABASE_USERNAME", "postgres") %>
   password: <%= ENV.fetch("DATABASE_PASSWORD", "password") %>
   host: <%= ENV.fetch("DATABASE_HOST", "127.0.0.1") %>
+  port: <%= ENV.fetch("DATABASE_PORT", 5432) %>
 
 development:
   <<: *default
@@ -15,8 +15,8 @@ test:
   <<: *default
   database: memorise_test
 
+# 本番（Render 等）は DATABASE_URL を注入する想定。url があれば各項目を上書きする。
 production:
   <<: *default
+  url: <%= ENV["DATABASE_URL"] %>
   database: <%= ENV.fetch("DATABASE_NAME", "memorise_production") %>
-  username: <%= ENV["DATABASE_USERNAME"] %>
-  password: <%= ENV["DATABASE_PASSWORD"] %>
