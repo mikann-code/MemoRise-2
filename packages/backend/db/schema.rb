@@ -11,7 +11,10 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema[8.1].define(version: 2026_06_17_000007) do
-  create_table "study_details", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_catalog.plpgsql"
+
+  create_table "study_details", force: :cascade do |t|
     t.bigint "chapter_wordbook_id"
     t.integer "correct_count", default: 0, null: false
     t.datetime "created_at", null: false
@@ -24,7 +27,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_000007) do
     t.index ["study_record_id"], name: "index_study_details_on_study_record_id"
   end
 
-  create_table "study_records", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+  create_table "study_records", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "memo"
     t.integer "study_count", default: 0, null: false
@@ -35,7 +38,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_000007) do
     t.index ["user_id"], name: "index_study_records_on_user_id"
   end
 
-  create_table "user_word_tags", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+  create_table "user_word_tags", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "tag", null: false
     t.datetime "updated_at", null: false
@@ -46,7 +49,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_000007) do
     t.index ["word_id"], name: "index_user_word_tags_on_word_id"
   end
 
-  create_table "user_wordbook_progresses", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+  create_table "user_wordbook_progresses", force: :cascade do |t|
     t.boolean "completed", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -57,7 +60,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_000007) do
     t.index ["wordbook_id"], name: "index_user_wordbook_progresses_on_wordbook_id"
   end
 
-  create_table "users", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+  create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.date "last_study_date"
@@ -67,10 +70,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_000007) do
     t.integer "streak", default: 0, null: false
     t.datetime "updated_at", null: false
     t.integer "words_count", default: 0, null: false
-    t.index ["email"], name: "index_users_on_email", unique: true
+    t.index "lower((email)::text)", name: "index_users_on_lower_email", unique: true
   end
 
-  create_table "wordbooks", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+  create_table "wordbooks", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "deleted_at"
     t.text "description"
@@ -92,7 +95,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_000007) do
     t.index ["user_id"], name: "index_wordbooks_on_user_id"
   end
 
-  create_table "words", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+  create_table "words", force: :cascade do |t|
     t.string "answer", null: false
     t.datetime "created_at", null: false
     t.string "question", null: false

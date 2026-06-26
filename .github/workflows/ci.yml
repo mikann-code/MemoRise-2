@@ -33,22 +33,23 @@ jobs:
       run:
         working-directory: packages/backend
     services:
-      mysql:
-        image: mysql:8.0
+      postgres:
+        image: postgres:16
         env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: memorise_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: memorise_test
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd="mysqladmin ping -ppassword"
+          --health-cmd="pg_isready -U postgres"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
     env:
       RAILS_ENV: test
       DATABASE_HOST: 127.0.0.1
-      DATABASE_USERNAME: root
+      DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: password
     steps:
       - uses: actions/checkout@v4

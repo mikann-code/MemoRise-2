@@ -1,12 +1,12 @@
 # バックエンド設計（MemoRise v2）
 
-> v1（Rails 8.1 API モード / REST / JWT / MySQL）のデータモデルとビジネスロジックを抽出し、v2 スタック（Rails 8.1 + **GraphQL（graphql-ruby）** + MySQL + Solid Queue/Cache/Cable + Kamal）前提で再構成したもの。ドメイン設計は v1 を踏襲し、API 表現を REST から GraphQL に置き換える。
+> v1（Rails 8.1 API モード / REST / JWT / MySQL）のデータモデルとビジネスロジックを抽出し、v2 スタック（Rails 8.1 + **GraphQL（graphql-ruby）** + PostgreSQL + Solid Queue/Cache/Cable）前提で再構成したもの。ドメイン設計は v1 を踏襲し、API 表現を REST から GraphQL に置き換える。
 
 ## 1. 全体方針
 
 - `ActionController::API` ベースの API 専用構成。ステートレス認証（JWT）。
 - v1 は名前空間 `api/v1`（一般）と `api/admin`（管理者）で物理分離していた。v2 では **GraphQL の単一エンドポイント**に統一しつつ、**認証コンテキスト（current_user / current_admin）と Resolver レベルの認可**で一般／管理者の境界を表現する。
-- キュー・キャッシュ・セッションは **Solid 系（MySQL ベース、Redis 不使用）**。
+- キュー・キャッシュ・セッションは **Solid 系（PostgreSQL ベース、Redis 不使用）**。
 
 ## 2. データモデル
 

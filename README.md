@@ -14,14 +14,14 @@ MemoRise#2/
 ├── package.json            # ルート（npm workspaces）
 ├── packages/
 │   ├── frontend/           # Next.js 16 + React 19 + MUI 7 + Apollo Client 4
-│   └── backend/            # Rails 8.1 (API) + graphql-ruby + MySQL 8
+│   └── backend/            # Rails 8.1 (API) + graphql-ruby + PostgreSQL 16
 └── docs/
 ```
 
 ## 前提
 
 - **Docker で動かす場合**：Docker Desktop のみ
-- **ローカルで直接動かす場合**：Node.js 22 / Ruby 3.4.5 / MySQL 8
+- **ローカルで直接動かす場合**：Node.js 22 / Ruby 3.4.5 / PostgreSQL 16
 
 ---
 
@@ -78,7 +78,7 @@ npm run dev
 
 ```bash
 cd packages/backend
-cp .env.example .env       # MySQL の接続先を編集
+cp .env.example .env       # PostgreSQL の接続先を編集
 bundle install
 bin/rails db:create db:migrate
 bin/rails server -p 3100   # http://localhost:3100

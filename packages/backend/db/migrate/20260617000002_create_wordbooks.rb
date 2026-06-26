@@ -21,9 +21,7 @@ class CreateWordbooks < ActiveRecord::Migration[8.1]
     end
 
     # 同一親内（章）の重複・順序衝突を DB レベルで防止する。
-    # NOTE: MySQL は NULL を区別するため、これらの一意性はトップレベル
-    #   （parent_id IS NULL）には効かない。トップレベルの順序は仕様上
-    #   担保しない（公式は少数、表示順はアプリ側 / created_at で十分）。
+    # 担保しない（公式は少数、表示順はアプリ側 / created_at で十分）。
     add_index :wordbooks, [ :parent_id, :order_index ], unique: true
     add_index :wordbooks, [ :parent_id, :part ], unique: true
     # kept / discarded スコープの絞り込み用。

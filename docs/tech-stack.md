@@ -23,8 +23,8 @@
 | --- | --- |
 | フレームワーク | Ruby on Rails 8.1（API モード） / Ruby 3.4.5 |
 | API | GraphQL（開発時 GraphiQL） |
-| データベース | MySQL 8.0（mysql2） |
-| ジョブ / キャッシュ | Solid Queue / Solid Cache / Solid Cable（すべて MySQL ベース、**Redis 不使用**） |
+| データベース | PostgreSQL 16（pg） |
+| ジョブ / キャッシュ | Solid Queue / Solid Cache / Solid Cable（すべて PostgreSQL ベース、**Redis 不使用**） |
 | ジョブ監視 | Mission Control - Jobs |
 | Web サーバー | Puma（+ Propshaft / Thruster） |
 | 認証 | bcrypt（has_secure_password） |
@@ -47,4 +47,4 @@
 
 ## 特徴
 
-キュー・キャッシュ・セッションをすべて MySQL に寄せ、**Redis を使わない** Rails 8 の Solid 系構成。インフラをシンプルに保つ設計になっている。
+キュー・キャッシュ・セッションをすべて PostgreSQL に寄せ、**Redis を使わない** Rails 8 の Solid 系構成。インフラをシンプルに保つ設計になっている。
