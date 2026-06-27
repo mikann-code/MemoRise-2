@@ -1,0 +1,43 @@
+/*
+ * 共通デザイントークン（ダークベース + オレンジ系アクセント）。
+ * 全コンポーネントがこの CSS 変数を参照する。MUI テーマ（theme.ts）にも同値を反映している。
+ * フォントは next/font が生成する変数（--font-zen-maru-gothic / --font-noto-sans-jp）に接続する。
+ */
+:root {
+  /* アクセント */
+  --color-primary: #ffa94d;
+  --color-secondary: #ff8c00;
+
+  /* 背景 */
+  --color-bg-primary: #222222;
+  --color-bg-secondary: #555555;
+  --color-bg-tertiary: #333333;
+
+  /* 文字 */
+  --color-font-primary: #ffffff;
+  --color-font-secondary: #aaaaaa;
+
+  /* 状態 */
+  --color-error: #ff7a7a;
+  --color-success: #a3e635;
+  --color-border: #555555;
+
+  /* フォント（見出し=Zen Maru Gothic / 本文=Noto Sans JP） */
+  --font-primary: var(--font-zen-maru-gothic), sans-serif;
+  --font-secondary: var(--font-noto-sans-jp), sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
