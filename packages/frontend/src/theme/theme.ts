@@ -3,27 +3,29 @@
 import { createTheme } from "@mui/material/styles";
 
 /**
- * MUI テーマ。色・タイポグラフィなどデザインシステムの基点。
- * 詳細なデザインは MemoRise#2/designs/ に合わせて調整する。
+ * MUI テーマ。デザイントークン（globals.css の :root）と同値をダークベースで定義する。
+ * 見出しは Zen Maru Gothic（--font-primary）、本文は Noto Sans JP（--font-secondary）。
  */
 const theme = createTheme({
   palette: {
-    mode: "light",
-    primary: {
-      main: "#ff7043",
-    },
-    secondary: {
-      main: "#42a5f5",
-    },
+    mode: "dark",
+    primary: { main: "#ffa94d" },
+    secondary: { main: "#ff8c00" },
+    error: { main: "#ff7a7a" },
+    success: { main: "#a3e635" },
+    background: { default: "#222222", paper: "#333333" },
+    text: { primary: "#ffffff", secondary: "#aaaaaa" },
+    divider: "#555555",
   },
   typography: {
-    fontFamily: [
-      "var(--font-noto-sans-jp)",
-      "Roboto",
-      "Helvetica",
-      "Arial",
-      "sans-serif",
-    ].join(","),
+    fontFamily: "var(--font-secondary), 'Noto Sans JP', sans-serif",
+    // 見出しは Zen Maru Gothic 系
+    h1: { fontFamily: "var(--font-primary), sans-serif" },
+    h2: { fontFamily: "var(--font-primary), sans-serif" },
+    h3: { fontFamily: "var(--font-primary), sans-serif" },
+    h4: { fontFamily: "var(--font-primary), sans-serif" },
+    h5: { fontFamily: "var(--font-primary), sans-serif" },
+    h6: { fontFamily: "var(--font-primary), sans-serif" },
   },
 });
 
