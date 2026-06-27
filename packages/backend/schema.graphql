@@ -1,0 +1,13 @@
+type Mutation {
+  """
+  プレースホルダ
+  """
+  noop: Boolean!
+}
+
+type Query {
+  """
+  API 稼働確認用
+  """
+  health: String!
+}
