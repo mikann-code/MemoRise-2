@@ -14,6 +14,9 @@ packages/frontend/next-env.d.ts
 # graphql codegen
 packages/frontend/src/gql/
 
+# graphql schema dump（SDL は commit、introspection JSON は生成物として無視）
+packages/backend/schema.json
+
 # playwright
 packages/frontend/test-results/
 packages/frontend/playwright-report/
