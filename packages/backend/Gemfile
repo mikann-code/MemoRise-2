@@ -12,6 +12,10 @@ gem "graphql", "~> 2.3"
 # 認証（has_secure_password）
 gem "bcrypt", "~> 3.1.7"
 
+# セッション（PostgreSQL にセッション実体を保存する DB セッションストア）。
+# Cookie には session_id のみを載せ、user_id 等は DB 側に保持する（docs/tech-stack.md）。
+gem "activerecord-session_store"
+
 # CORS
 gem "rack-cors"
 

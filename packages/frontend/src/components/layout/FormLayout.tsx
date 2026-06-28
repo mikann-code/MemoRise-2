@@ -15,7 +15,7 @@ export default function FormLayout({ header, description, form }: Props) {
   return (
     <Box
       sx={{
-        maxWidth: 480,
+        maxWidth: 560,
         mx: "auto",
         px: 3,
         py: 6,
