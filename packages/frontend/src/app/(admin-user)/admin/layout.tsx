@@ -1,15 +1,11 @@
 import type { ReactNode } from "react";
-import { requireAdmin } from "@/lib/auth/serverAuth";
 
 /**
- * /admin/* の管理者ガード。未ログイン（または非管理者）なら /admin-login へ。
- * NOTE: role 整合の本検証は adminMe クエリ実装時（認証 Issue #5 / #6）に差し替える。
+ * /admin/* の管理者セグメント。
+ * TODO(#6): 管理者ログイン（adminMe）実装後に role=admin の検証＋未認証リダイレクトを入れる。
+ *   現状は管理者認証が未実装で、配下に管理者ページもまだ無いためガードは未適用。
+ *   旧トークン Cookie 方式（serverAuth/cookies）はセッション方式へ移行済みのため撤去した。
  */
-export default async function AdminLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  await requireAdmin();
+export default function AdminLayout({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }

@@ -3,20 +3,17 @@
 import NextLink from "next/link";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { useMeQuery } from "@/graphql/queries/me";
 import { useAuth } from "@/lib/auth/useAuth";
+import { useCurrentUser } from "@/lib/auth/authContext";
 
 /**
- * 共通ヘッダー。me を取得し、ログイン中は「名前 + ログアウト」、
- * 未認証なら「ログイン / 新規登録」への導線を出す（未認証時のハンドリング）。
+ * 共通ヘッダー。AuthProvider 配下（(auth) グループ）でのみ使用し、
+ * currentUser は Context（useCurrentUser）から受け取る（自前で me を引かない）。
+ * これにより me の取得は AuthProvider の 1 クエリに集約される。
  */
 export default function Header() {
-  const { data } = useMeQuery({
-    fetchPolicy: "cache-and-network",
-    errorPolicy: "all",
-  });
+  const { currentUser } = useCurrentUser();
   const { logout } = useAuth();
-  const me = data?.me ?? null;
 
   return (
     <Box
@@ -43,46 +40,27 @@ export default function Header() {
         MemoRise
       </Box>
 
-      {me ? (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Typography sx={{ fontSize: 14, color: "var(--color-font-secondary)" }}>
-            {me.name} さん
-          </Typography>
-          <Box
-            component="button"
-            type="button"
-            onClick={() => logout()}
-            sx={{
-              border: "none",
-              background: "none",
-              p: 0,
-              cursor: "pointer",
-              fontSize: 14,
-              fontFamily: "var(--font-secondary)",
-              color: "var(--color-primary)",
-            }}
-          >
-            ログアウト
-          </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Typography sx={{ fontSize: 14, color: "var(--color-font-secondary)" }}>
+          {currentUser.name} さん
+        </Typography>
+        <Box
+          component="button"
+          type="button"
+          onClick={() => logout()}
+          sx={{
+            border: "none",
+            background: "none",
+            p: 0,
+            cursor: "pointer",
+            fontSize: 14,
+            fontFamily: "var(--font-secondary)",
+            color: "var(--color-primary)",
+          }}
+        >
+          ログアウト
         </Box>
-      ) : (
-        <Box sx={{ display: "flex", gap: 2 }}>
-          <Box
-            component={NextLink}
-            href="/login"
-            sx={{ fontSize: 14, color: "var(--color-primary)" }}
-          >
-            ログイン
-          </Box>
-          <Box
-            component={NextLink}
-            href="/signup"
-            sx={{ fontSize: 14, color: "var(--color-primary)" }}
-          >
-            新規登録
-          </Box>
-        </Box>
-      )}
+      </Box>
     </Box>
   );
 }

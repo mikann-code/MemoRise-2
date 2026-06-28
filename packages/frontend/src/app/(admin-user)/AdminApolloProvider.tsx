@@ -7,7 +7,7 @@ import { makeAdminApolloClient } from "@/lib/apolloClient";
 /**
  * 管理者ページ専用の Apollo Provider。
  * ルートの一般ユーザー用クライアントを、配下の管理者ページでだけ
- * 管理者用クライアント（admin_token・別キャッシュ空間）に差し替える。
+ * 管理者用クライアント（別キャッシュ空間）に差し替える。
  */
 export default function AdminApolloProvider({
   children,

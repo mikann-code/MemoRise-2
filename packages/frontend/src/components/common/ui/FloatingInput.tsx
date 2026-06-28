@@ -10,10 +10,10 @@ import { styled } from "@mui/material/styles";
  */
 const Wrapper = styled("div")({
   position: "relative",
-  marginBottom: 32,
+  marginBottom: 22,
   "& input": {
     width: "100%",
-    padding: "16px 12px",
+    padding: "10px 12px",
     border: "2px solid var(--color-border)",
     borderRadius: 8,
     background: "transparent",
@@ -31,6 +31,9 @@ const Wrapper = styled("div")({
     left: 12,
     top: "50%",
     transform: "translateY(-50%)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
     padding: "0 4px",
     color: "var(--color-font-secondary)",
     fontSize: 16,
@@ -39,6 +42,8 @@ const Wrapper = styled("div")({
     background: "var(--color-bg-primary)",
     transition: "all .15s ease",
   },
+  // ラベル内アイコンは文字サイズに追従（浮上時 12px → 約 14px。色も label を継承）
+  "& label svg": { fontSize: "1.15em" },
   "& input:focus + label, & input:not(:placeholder-shown) + label": {
     top: 0,
     fontSize: 12,
@@ -71,6 +76,7 @@ type Props = {
   disabled?: boolean;
   error?: string;
   icon?: ReactNode;
+  labelIcon?: ReactNode;
 };
 
 export default function FloatingInput({
@@ -82,6 +88,7 @@ export default function FloatingInput({
   disabled = false,
   error,
   icon,
+  labelIcon,
 }: Props) {
   return (
     <Wrapper>
@@ -97,7 +104,10 @@ export default function FloatingInput({
         className={error ? "error" : undefined}
         style={icon ? { paddingRight: 40 } : undefined}
       />
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>
+        {labelIcon}
+        {label}
+      </label>
       {icon && <span className="icon">{icon}</span>}
       {error && <span className="error-msg">{error}</span>}
     </Wrapper>
