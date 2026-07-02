@@ -7,6 +7,12 @@ module Types
     # フロントの管理者ガードはこれで判定し、null なら /admin-login へリダイレクトする。
     field :admin_me, Types::UserType, null: true, description: "ログイン中の管理者（管理者でなければ null）"
 
+    # 公式単語帳の閲覧（読み取り専用・要ログイン）。認可は各 Resolver の冒頭でガードする。
+    field :public_wordbooks, resolver: Resolvers::PublicWordbooks,
+      description: "公式単語帳の親一覧（読み取り専用・要ログイン）"
+    field :public_wordbook, resolver: Resolvers::PublicWordbook,
+      description: "公式単語帳の親 1 件（子＝章・単語まで。読み取り専用・要ログイン）"
+
     # 動作確認用フィールド。
     field :health, String, null: false, description: "API 稼働確認用"
 

@@ -7,6 +7,8 @@ RSpec.describe "GraphQL signUp", type: :request do
     <<~GQL
       mutation SignUp($name: String!, $email: String!, $password: String!) {
         signUp(name: $name, email: $email, password: $password) {
+          success
+          errors { field message }
           user { id name email role streak wordsCount }
         }
       }
@@ -30,6 +32,8 @@ RSpec.describe "GraphQL signUp", type: :request do
         @json = post_sign_up(name: "山田太郎", email: "taro@example.com", password: "password123")
       }.to change(User, :count).by(1)
 
+      expect(@json.dig("data", "signUp", "success")).to be(true)
+      expect(@json.dig("data", "signUp", "errors")).to eq([])
       user = @json.dig("data", "signUp", "user")
       expect(user["email"]).to eq("taro@example.com")
       expect(user["role"]).to eq("user")
@@ -50,22 +54,40 @@ RSpec.describe "GraphQL signUp", type: :request do
   end
 
   describe "異常系" do
-    it "メール重複はエラーを返し、ユーザーを作成しない" do
+    # 入力エラーは例外ではなく {success:false, errors} で返す（top-level errors は出さない）。
+    it "メール重複は success:false と email エラーを返し、ユーザーを作成しない" do
       create(:user, email: "dup@example.com")
 
       expect {
         @json = post_sign_up(name: "別人", email: "dup@example.com", password: "password123")
       }.not_to change(User, :count)
 
-      expect(@json["errors"]).to be_present
-      expect(@json.dig("data", "signUp")).to be_nil
+      expect(@json["errors"]).to be_nil
+      expect(@json.dig("data", "signUp", "success")).to be(false)
+      expect(@json.dig("data", "signUp", "user")).to be_nil
+      expect(@json.dig("data", "signUp", "errors").map { |e| e["field"] }).to include("email")
     end
 
-    it "8 文字未満のパスワードは UNPROCESSABLE_ENTITY" do
-      json = post_sign_up(name: "山田太郎", email: "taro@example.com", password: "short")
+    it "不正な形式のメールは success:false と email エラーを返し、ユーザーを作成しない" do
+      expect {
+        @json = post_sign_up(name: "山田太郎", email: "not-an-email", password: "password123")
+      }.not_to change(User, :count)
 
-      expect(json["errors"]).to be_present
-      expect(json.dig("errors", 0, "extensions", "code")).to eq("UNPROCESSABLE_ENTITY")
+      expect(@json["errors"]).to be_nil
+      expect(@json.dig("data", "signUp", "success")).to be(false)
+      expect(@json.dig("data", "signUp", "user")).to be_nil
+      expect(@json.dig("data", "signUp", "errors").map { |e| e["field"] }).to include("email")
+    end
+
+    it "8 文字未満のパスワードは success:false と password エラーを返す" do
+      expect {
+        @json = post_sign_up(name: "山田太郎", email: "taro@example.com", password: "short")
+      }.not_to change(User, :count)
+
+      expect(@json["errors"]).to be_nil
+      expect(@json.dig("data", "signUp", "success")).to be(false)
+      expect(@json.dig("data", "signUp", "user")).to be_nil
+      expect(@json.dig("data", "signUp", "errors").map { |e| e["field"] }).to include("password")
     end
   end
 end

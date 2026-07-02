@@ -7,6 +7,8 @@ RSpec.describe "GraphQL login", type: :request do
     <<~GQL
       mutation Login($email: String!, $password: String!) {
         login(email: $email, password: $password) {
+          success
+          errors { field message }
           user { id email role }
         }
       }
@@ -29,6 +31,8 @@ RSpec.describe "GraphQL login", type: :request do
     it "正しい認証情報でユーザーを返し、ログイン状態になる" do
       json = post_login(email: "taro@example.com", password: "password123")
 
+      expect(json.dig("data", "login", "success")).to be(true)
+      expect(json.dig("data", "login", "errors")).to eq([])
       expect(json.dig("data", "login", "user", "email")).to eq("taro@example.com")
       expect(current_me_email).to eq("taro@example.com")
     end
@@ -40,28 +44,40 @@ RSpec.describe "GraphQL login", type: :request do
   end
 
   describe "異常系・認可" do
-    it "パスワード不一致は UNAUTHORIZED で、ログイン状態にならない" do
-      create(:user, email: "taro@example.com", password: "password123")
-      json = post_login(email: "taro@example.com", password: "wrong-password")
+    # 認証失敗は例外ではなく {success:false, errors} で返す（top-level errors は出さない）。
+    # メール存在を秘匿するため、原因に関わらず同一メッセージにする。
+    shared_examples "認証失敗を返す" do
+      it "success:false と system エラーを返し、ログイン状態にならない" do
+        json = post_login(email: email, password: password)
 
-      expect(json.dig("data", "login")).to be_nil
-      expect(json.dig("errors", 0, "extensions", "code")).to eq("UNAUTHORIZED")
-      expect(current_me_email).to be_nil
+        expect(json["errors"]).to be_nil
+        expect(json.dig("data", "login", "success")).to be(false)
+        expect(json.dig("data", "login", "user")).to be_nil
+        expect(json.dig("data", "login", "errors", 0, "field")).to eq("system")
+        expect(json.dig("data", "login", "errors", 0, "message"))
+          .to eq("メールアドレスまたはパスワードが正しくありません")
+        expect(current_me_email).to be_nil
+      end
     end
 
-    it "存在しないメールは UNAUTHORIZED" do
-      json = post_login(email: "ghost@example.com", password: "password123")
-
-      expect(json.dig("data", "login")).to be_nil
-      expect(json.dig("errors", 0, "extensions", "code")).to eq("UNAUTHORIZED")
+    context "パスワード不一致" do
+      before { create(:user, email: "taro@example.com", password: "password123") }
+      let(:email) { "taro@example.com" }
+      let(:password) { "wrong-password" }
+      include_examples "認証失敗を返す"
     end
 
-    it "管理者は一般ログインから締め出す（スコープ分離）" do
-      create(:user, :admin, email: "admin@example.com", password: "password123")
-      json = post_login(email: "admin@example.com", password: "password123")
+    context "存在しないメール" do
+      let(:email) { "ghost@example.com" }
+      let(:password) { "password123" }
+      include_examples "認証失敗を返す"
+    end
 
-      expect(json.dig("data", "login")).to be_nil
-      expect(json.dig("errors", 0, "extensions", "code")).to eq("UNAUTHORIZED")
+    context "管理者は一般ログインから締め出す（スコープ分離）" do
+      before { create(:user, :admin, email: "admin@example.com", password: "password123") }
+      let(:email) { "admin@example.com" }
+      let(:password) { "password123" }
+      include_examples "認証失敗を返す"
     end
   end
 end
