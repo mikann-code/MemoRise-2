@@ -11,11 +11,11 @@ import { useAdminAuth } from "@/lib/auth/useAdminAuth";
 import { authErrorMessage } from "@/lib/auth/authError";
 
 /**
- * 管理者ログイン画面（(admin-user) グループ。一般ログインとは画面空間・キャッシュを分離）。
+ * 管理者ログイン画面（(admin) グループ。一般ログインとは画面空間・キャッシュを分離）。
  * 管理者はシステム側で発行する前提のため新規登録導線は持たない。
  */
 export default function AdminLoginPage() {
-  const { adminLogin, adminLoginError, submitting } = useAdminAuth();
+  const { adminLogin, adminLoginErrors, submitting } = useAdminAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -52,9 +52,9 @@ export default function AdminLoginPage() {
             disabled={submitting}
             labelIcon={<LockOutlinedIcon />}
           />
-          {adminLoginError && (
+          {adminLoginErrors.length > 0 && (
             <Typography sx={{ color: "var(--color-error)", fontSize: 14, mt: -1.5, mb: 2 }}>
-              {authErrorMessage(adminLoginError, "ログインに失敗しました")}
+              {authErrorMessage(adminLoginErrors, "ログインに失敗しました")}
             </Typography>
           )}
           <Box sx={{ mt: 4 }}>

@@ -5,36 +5,32 @@ import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
-import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
-import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
-import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import HomeIcon from "@mui/icons-material/Home";
+import CreateIcon from "@mui/icons-material/Create";
+import SchoolIcon from "@mui/icons-material/School";
+import PersonIcon from "@mui/icons-material/Person";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
 
 /**
- * 下部固定のグローバルナビ（ピル形）。usePathname で URL を見て user 用 / admin 用を出し分ける。
- * hover 中はその項目を、未 hover 時は現在ページを active 表示する。
+ * 下部固定のグローバルナビ（幅広のピルバー）。usePathname で URL を見て
+ * user 用 / admin 用を出し分ける。項目は常にオレンジ、現在ページ（hover 中はその項目）を
+ * 塗り円でハイライトする（v1 踏襲）。
  */
 type NavItem = { href: string; label: string; icon: ReactNode };
 
 const USER_NAV: NavItem[] = [
-  { href: "/", label: "ホーム", icon: <HomeOutlinedIcon /> },
-  { href: "/wordbooks/new", label: "単語作成", icon: <AddCircleOutlineIcon /> },
-  { href: "/study-records", label: "学習データ", icon: <BarChartOutlinedIcon /> },
-  { href: "/my-page", label: "マイページ", icon: <PersonOutlineIcon /> },
+  { href: "/", label: "ホーム", icon: <HomeIcon /> },
+  { href: "/wordbooks", label: "単語作成", icon: <CreateIcon /> },
+  { href: "/study-records", label: "学習データ", icon: <SchoolIcon /> },
+  { href: "/my-page", label: "マイページ", icon: <PersonIcon /> },
 ];
 
 const ADMIN_NAV: NavItem[] = [
-  { href: "/admin", label: "管理トップ", icon: <DashboardOutlinedIcon /> },
-  { href: "/admin/wordbooks", label: "単語帳管理", icon: <MenuBookOutlinedIcon /> },
-  { href: "/admin/users", label: "ユーザー一覧", icon: <GroupOutlinedIcon /> },
+  { href: "/admin", label: "管理トップ", icon: <AdminPanelSettingsIcon /> },
+  { href: "/admin/wordbooks", label: "単語帳管理", icon: <MenuBookIcon /> },
+  { href: "/admin/users", label: "ユーザー一覧", icon: <PersonIcon /> },
 ];
-
-function isCurrent(href: string, pathname: string): boolean {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
-}
 
 export default function Footer() {
   const pathname = usePathname();
@@ -42,31 +38,32 @@ export default function Footer() {
     pathname.startsWith("/admin") && !pathname.startsWith("/admin-login");
   const nav = isAdmin ? ADMIN_NAV : USER_NAV;
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const currentIndex = nav.findIndex((item) => isCurrent(item.href, pathname));
+  const currentIndex = nav.findIndex((item) => item.href === pathname);
 
   return (
     <Box
       component="nav"
       sx={{
         position: "fixed",
-        bottom: 16,
-        left: "50%",
-        transform: "translateX(-50%)",
+        left: 20,
+        right: 20,
+        bottom: 2,
         display: "flex",
         alignItems: "center",
-        gap: "60px",
-        px: 4,
-        py: 1.5,
+        justifyContent: "center",
+        gap: "80px",
+        py: "4px",
+        border: "1px solid #666",
         borderRadius: "52px",
         backgroundColor: "var(--color-bg-primary)",
-        boxShadow: "0 4px 20px rgba(0,0,0,.4)",
         zIndex: 999,
         "@media (max-width:1200px)": { gap: "50px" },
         "@media (max-width:768px)": { gap: "30px" },
       }}
     >
       {nav.map((item, i) => {
-        const active = hoverIndex !== null ? hoverIndex === i : currentIndex === i;
+        const active =
+          hoverIndex !== null ? hoverIndex === i : currentIndex === i;
         return (
           <Box
             key={item.href}
@@ -78,8 +75,11 @@ export default function Footer() {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 0.5,
+              gap: 0.25,
+              py: 0.5,
+              borderRadius: "12px",
               textDecoration: "none",
+              color: "var(--color-primary)",
             }}
           >
             <Box
@@ -87,25 +87,22 @@ export default function Footer() {
                 width: 40,
                 height: 40,
                 borderRadius: "50%",
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: active ? "#000000" : "var(--color-font-secondary)",
-                backgroundColor: active ? "var(--color-primary)" : "transparent",
-                boxShadow: active ? "0 2px 6px rgba(0,0,0,.3)" : "none",
-                transition: "all .15s ease",
+                transition: "all .25s ease",
+                ...(active
+                  ? {
+                      backgroundColor: "var(--color-primary)",
+                      color: "#000000",
+                      boxShadow: "0 2px 8px rgba(255,152,0,.18)",
+                    }
+                  : {}),
               }}
             >
               {item.icon}
             </Box>
-            <Typography
-              sx={{
-                fontSize: 11,
-                color: active
-                  ? "var(--color-primary)"
-                  : "var(--color-font-secondary)",
-              }}
-            >
+            <Typography sx={{ fontSize: 12, color: "var(--color-primary)" }}>
               {item.label}
             </Typography>
           </Box>

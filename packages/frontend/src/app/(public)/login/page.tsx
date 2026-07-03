@@ -13,7 +13,7 @@ import { authErrorMessage } from "@/lib/auth/authError";
 
 /** ログイン画面（(public) グループ。FormLayout を新規登録画面と共用）。 */
 export default function LoginPage() {
-  const { login, loginError, submitting } = useAuth();
+  const { login, loginErrors, submitting } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -50,9 +50,9 @@ export default function LoginPage() {
             disabled={submitting}
             labelIcon={<LockOutlinedIcon />}
           />
-          {loginError && (
+          {loginErrors.length > 0 && (
             <Typography sx={{ color: "var(--color-error)", fontSize: 14, mt: -1.5, mb: 2 }}>
-              {authErrorMessage(loginError, "ログインに失敗しました")}
+              {authErrorMessage(loginErrors, "ログインに失敗しました")}
             </Typography>
           )}
           <Box sx={{ mt: 4 }}>

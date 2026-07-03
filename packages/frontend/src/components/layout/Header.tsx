@@ -5,11 +5,13 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { useAuth } from "@/lib/auth/useAuth";
 import { useCurrentUser } from "@/lib/auth/authContext";
+import { HEADER_HEIGHT } from "@/constants/layout";
 
 /**
  * 共通ヘッダー。AuthProvider 配下（(auth) グループ）でのみ使用し、
  * currentUser は Context（useCurrentUser）から受け取る（自前で me を引かない）。
  * これにより me の取得は AuthProvider の 1 クエリに集約される。
+ * 画面上部に固定表示（position: fixed）。下部固定の Footer と対になる。
  */
 export default function Header() {
   const { currentUser } = useCurrentUser();
@@ -19,11 +21,17 @@ export default function Header() {
     <Box
       component="header"
       sx={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        height: HEADER_HEIGHT,
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         px: 2,
-        py: 1.5,
+        backgroundColor: "var(--color-bg-primary)",
         borderBottom: "1px solid var(--color-border)",
       }}
     >

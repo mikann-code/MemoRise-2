@@ -12,6 +12,11 @@ import type { SignUpMutationVariables } from "@/gql/graphql";
 export const SignUpDocument = graphql(`
   mutation SignUp($name: String!, $email: String!, $password: String!) {
     signUp(name: $name, email: $email, password: $password) {
+      success
+      errors {
+        field
+        message
+      }
       user {
         id
         name

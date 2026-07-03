@@ -12,7 +12,7 @@ import { makeUserApolloClient } from "@/lib/apolloClient";
  * - 一般ユーザー用 Apollo Client（GraphQL データ取得・キャッシュ）
  * - MUI ThemeProvider + CssBaseline（全グループ共通のデザインシステム）
  *
- * 管理者ページ（(admin-user)）では配下で AdminApolloProvider が
+ * 管理者ページ（(admin)）では配下で AdminApolloProvider が
  * 管理者用クライアント（別キャッシュ空間）へ差し替える。
  */
 export default function Providers({ children }: { children: React.ReactNode }) {
