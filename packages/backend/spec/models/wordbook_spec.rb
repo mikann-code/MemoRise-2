@@ -5,6 +5,7 @@ RSpec.describe Wordbook, type: :model do
     subject { build(:wordbook) }
 
     it { is_expected.to validate_presence_of(:title) }
+    it { is_expected.to validate_inclusion_of(:label).in_array(Wordbook::LABELS).allow_nil }
   end
 
   describe "関連" do
@@ -23,6 +24,14 @@ RSpec.describe Wordbook, type: :model do
 
     it "既定値は personal" do
       expect(Wordbook.new.kind).to eq("personal")
+    end
+  end
+
+  describe "LABELS 定数（ラベル分類）" do
+    it "許可するラベル値の集合を順序どおり持つ（フロント WORDBOOK_LABELS と一致）" do
+      expect(Wordbook::LABELS).to eq(
+        %w[none junior_high high_school eiken toeic toefl daily official]
+      )
     end
   end
 

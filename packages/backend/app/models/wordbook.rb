@@ -1,4 +1,11 @@
 class Wordbook < ApplicationRecord
+  # 公式単語帳のラベル分類（許可する値の集合）。official のカテゴリ分け（英検 / TOEIC 等）に使う。
+  # 「値として何が正しいか」＝ドメイン整合性の源泉はここ。inclusion で未知ラベルの保存を弾く
+  # （未知ラベルはフロントのどのセクションにも入らず一覧から消えるため、DB 側で防ぐ）。
+  # 表示名・並び順はプレゼンの関心なのでフロント（packages/frontend/src/constants/wordbookLabels.ts）が持つ。
+  # 任意項目（自作単語帳は nil）で、値 "official" が kind と衝突するため enum ではなく定数＋inclusion で扱う。
+  LABELS = %w[none junior_high high_school eiken toeic toefl daily official].freeze
+
   # 単語帳の種類。
   # official = 公式（運営が用意 / user_id なし）、
   # personal = 自作（ユーザー所有 / user_id あり）、
@@ -16,6 +23,8 @@ class Wordbook < ApplicationRecord
   has_many :words, dependent: :destroy
 
   validates :title, presence: true
+  # label は任意（自作は nil）。付ける場合は LABELS のいずれかに限定する。
+  validates :label, inclusion: { in: LABELS }, allow_nil: true
 
   # --- 論理削除（self のみ） ---
   # 単語帳を「ゴミ箱」に入れる方式。deleted_at に印を付けるだけで words は消さないため、

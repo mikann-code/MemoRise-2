@@ -1,5 +1,5 @@
 module Types
-  # 単語帳。公式単語帳の閲覧（親→子→単語）で使う読み取り専用の表現。
+  # 単語帳。公式単語帳の閲覧（親→子→単語）と管理者 CRUD Mutation の戻り値で使う表現。
   # 親 = 教材（TOEIC 等）、子（章）= children、単語 = words。
   class WordbookType < Types::BaseObject
     field :id, ID, null: false
