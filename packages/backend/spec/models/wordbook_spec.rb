@@ -5,6 +5,7 @@ RSpec.describe Wordbook, type: :model do
     subject { build(:wordbook) }
 
     it { is_expected.to validate_presence_of(:title) }
+    it { is_expected.to validate_inclusion_of(:label).in_array(Wordbook::LABELS).allow_nil }
   end
 
   describe "関連" do
@@ -23,6 +24,14 @@ RSpec.describe Wordbook, type: :model do
 
     it "既定値は personal" do
       expect(Wordbook.new.kind).to eq("personal")
+    end
+  end
+
+  describe "LABELS 定数（ラベル分類）" do
+    it "許可するラベル値の集合を順序どおり持つ（フロント WORDBOOK_LABELS と一致）" do
+      expect(Wordbook::LABELS).to eq(
+        %w[none junior_high high_school eiken toeic toefl daily official]
+      )
     end
   end
 
@@ -80,6 +89,24 @@ RSpec.describe Wordbook, type: :model do
       child = create(:wordbook, :official, parent: parent, part: "Day 1", order_index: 1)
       parent.discard!
       expect(child.reload.discarded?).to be(false)
+    end
+
+    it "章の #discard! は part / order_index を明け渡し、同じ値で章を再作成できる" do
+      parent = create(:wordbook, :official)
+      chapter = create(:wordbook, :official, parent: parent, part: "1", order_index: 1)
+
+      chapter.discard!
+
+      expect(chapter.reload.part).to be_nil
+      expect(chapter.order_index).to be_nil
+      recreated = create(:wordbook, :official, parent: parent, part: "1", order_index: 1)
+      expect(recreated).to be_persisted
+    end
+
+    it "親の #discard! は order_index を保持する（親同士は席が競合しないため）" do
+      parent = create(:wordbook, :official, order_index: 5)
+      parent.discard!
+      expect(parent.reload.order_index).to eq(5)
     end
   end
 end

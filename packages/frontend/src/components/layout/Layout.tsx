@@ -3,6 +3,7 @@ import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Header from "./Header";
 import Footer from "./Footer";
+import { HEADER_HEIGHT } from "@/constants/layout";
 
 /**
  * アプリの共通シェル。Header（予約枠）+ メイン + 下部固定の Footer ナビ。
@@ -13,7 +14,11 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Header />
-      <Container component="main" maxWidth="md" sx={{ flexGrow: 1, py: 4, pb: 14 }}>
+      <Container
+        component="main"
+        maxWidth="md"
+        sx={{ flexGrow: 1, pt: `${HEADER_HEIGHT + 16}px`, pb: 14 }}
+      >
         {children}
       </Container>
       <Footer />

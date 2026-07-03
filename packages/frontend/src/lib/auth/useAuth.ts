@@ -1,16 +1,21 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApolloClient } from "@apollo/client/react";
 import { useSignUpMutation, type SignUpMutationVariables } from "@/graphql/mutations/signUp";
 import { useLoginMutation, type LoginMutationVariables } from "@/graphql/mutations/login";
 import { useLogoutMutation } from "@/graphql/mutations/logout";
+import type { AuthFieldError } from "@/lib/auth/authError";
+
+// 想定外（通信断・GraphQL 例外など）で errors ペイロードが取れないときの汎用エラー。
+const systemError = (message: string): AuthFieldError[] => [{ field: "system", message }];
 
 /**
  * 一般ユーザーの認証アクション（サインアップ / ログイン / ログアウト）。
- * 認証は DB セッション方式のため、成功時はサーバーがセッション Cookie を発行・破棄する。
- * クライアント側は Apollo キャッシュをリセットして me を引き直し、画面遷移するだけでよい。
+ * 認証は DB セッション方式。成否は例外ではなく mutation の {success, errors} ペイロードで判定し、
+ * 失敗時は errors（field 単位）を state に保持して画面へ渡す。
+ * 成功時はサーバーがセッション Cookie を発行・破棄するので、Apollo キャッシュをリセットして遷移する。
  */
 export function useAuth() {
   const router = useRouter();
@@ -18,6 +23,9 @@ export function useAuth() {
   const [signUpMutation, signUpState] = useSignUpMutation();
   const [loginMutation, loginState] = useLoginMutation();
   const [logoutMutation] = useLogoutMutation();
+
+  const [signUpErrors, setSignUpErrors] = useState<AuthFieldError[]>([]);
+  const [loginErrors, setLoginErrors] = useState<AuthFieldError[]>([]);
 
   // 認証成功後、新しいセッションで me を引き直すためキャッシュをリセットしてホームへ。
   const enterApp = useCallback(async () => {
@@ -27,10 +35,22 @@ export function useAuth() {
 
   const signUp = useCallback(
     async (vars: SignUpMutationVariables): Promise<boolean> => {
+      setSignUpErrors([]);
       try {
-        await signUpMutation({ variables: vars });
+        const { data } = await signUpMutation({ variables: vars });
+        const payload = data?.signUp;
+        if (!payload?.success) {
+          const errors = payload?.errors ?? [];
+          setSignUpErrors(
+            errors.length
+              ? errors.map(({ field, message }) => ({ field, message }))
+              : systemError("登録に失敗しました"),
+          );
+          return false;
+        }
       } catch {
-        return false; // 失敗内容は signUpState.error に入る
+        setSignUpErrors(systemError("登録に失敗しました"));
+        return false;
       }
       await enterApp();
       return true;
@@ -40,9 +60,21 @@ export function useAuth() {
 
   const login = useCallback(
     async (vars: LoginMutationVariables): Promise<boolean> => {
+      setLoginErrors([]);
       try {
-        await loginMutation({ variables: vars });
+        const { data } = await loginMutation({ variables: vars });
+        const payload = data?.login;
+        if (!payload?.success) {
+          const errors = payload?.errors ?? [];
+          setLoginErrors(
+            errors.length
+              ? errors.map(({ field, message }) => ({ field, message }))
+              : systemError("ログインに失敗しました"),
+          );
+          return false;
+        }
       } catch {
+        setLoginErrors(systemError("ログインに失敗しました"));
         return false;
       }
       await enterApp();
@@ -66,8 +98,8 @@ export function useAuth() {
     signUp,
     login,
     logout,
-    signUpError: signUpState.error,
-    loginError: loginState.error,
+    signUpErrors,
+    loginErrors,
     submitting: signUpState.loading || loginState.loading,
   };
 }

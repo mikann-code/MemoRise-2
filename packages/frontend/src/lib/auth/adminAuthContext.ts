@@ -17,7 +17,7 @@ const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
 /**
  * 認証済み管理者情報を取得する hook。
- * (admin-user)/admin/layout.tsx の AdminAuthProvider 配下でのみ使用可能。
+ * (admin)/admin/layout.tsx の AdminAuthProvider 配下でのみ使用可能。
  * 認証アクション（adminLogin/adminLogout）が必要な場合は useAdminAuth を使う。
  */
 export function useCurrentAdmin(): AdminAuthContextValue {

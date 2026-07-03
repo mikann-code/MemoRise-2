@@ -11,7 +11,7 @@ App Router の Route Group `(xxx)` で、URL に出さずに権限ごとに空�
 | `(public)` | 不要 | `/login`、`/signup` |
 | `(semi-auth)` | 一部開放 | `/basicWordList`（公式単語帳一覧）、`/basicWord/[parentId]`、`/basicWord/[parentId]/[childrenId]/list`、`/basicWord/[parentId]/[childrenId]/test`、`/my-page`、`/my-page/edit` |
 | `(auth)` | 必須 | `/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`、`/study-records` |
-| `(admin-user)` | 管理者 | `/admin-login`、`/admin`、`/admin/users`、`/admin/wordbooks`、`/admin/wordbooks/[parentId]`、`/admin/wordbooks/[parentId]/edit`、`/admin/wordbooks/[parentId]/[childrenId]` |
+| `(admin)` | 管理者 | `/admin-login`、`/admin`、`/admin/users`、`/admin/wordbooks`、`/admin/wordbooks/[parentId]`、`/admin/wordbooks/[parentId]/edit`、`/admin/wordbooks/[parentId]/[childrenId]` |
 | ルート | 自己完結 | `/`（ホーム） |
 
 - 親子単語帳は `/[parentId]/[childrenId]` の二段ルーティングで「TOEIC > Day 1」のような体系を表現。

@@ -17,6 +17,8 @@ async function mockGraphql(page: Page) {
         body: JSON.stringify({
           data: {
             [key]: {
+              success: true,
+              errors: [],
               user: {
                 id: "1",
                 name: "テスト太郎",
@@ -34,7 +36,36 @@ async function mockGraphql(page: Page) {
       return;
     }
 
-    // me などその他は未認証扱いで返す。
+    // 認証成功後のホームはログインガード（me）を通るため、me は認証済みで返す。
+    if (op === "Me") {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            me: {
+              id: "1",
+              name: "テスト太郎",
+              email: "taro@example.com",
+              role: "user",
+              streak: 0,
+              wordsCount: 0,
+              __typename: "User",
+            },
+          },
+        }),
+      });
+      return;
+    }
+
+    // ホームの公式単語帳セクションが投げるクエリ。見出し検証には内容不問なので空で返す。
+    if (op === "PublicWordbooks") {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data: { publicWordbooks: [] } }),
+      });
+      return;
+    }
+
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ data: { me: null } }),
@@ -60,9 +91,9 @@ test("新規登録するとホーム画面に遷移する（代表導線）", as
   await page.getByLabel("パスワード（確認）").fill("password123");
   await page.getByRole("button", { name: "新規登録" }).click();
 
-  await expect(
-    page.getByRole("heading", { name: "MemoRise v2" }),
-  ).toBeVisible();
+  // ホーム（/）に遷移し、代表セクションが見えることを確認する。
+  await expect(page.getByRole("heading", { name: "今日の一問" })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
   expect(signUpSent).toBe(true);
 });
 

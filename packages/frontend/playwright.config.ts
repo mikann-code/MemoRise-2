@@ -10,6 +10,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // ローカルは Docker + Next dev サーバーと併走するため並列数を抑える
+  // （コア数既定の 8 並列だとブラウザが詰まり一斉タイムアウトする）。CI は既定値のまま。
+  workers: process.env.CI ? undefined : 2,
   reporter: "html",
   use: {
     baseURL: "http://localhost:3200",

@@ -1,4 +1,11 @@
 class Wordbook < ApplicationRecord
+  # 公式単語帳のラベル分類（許可する値の集合）。official のカテゴリ分け（英検 / TOEIC 等）に使う。
+  # 「値として何が正しいか」＝ドメイン整合性の源泉はここ。inclusion で未知ラベルの保存を弾く
+  # （未知ラベルはフロントのどのセクションにも入らず一覧から消えるため、DB 側で防ぐ）。
+  # 表示名・並び順はプレゼンの関心なのでフロント（packages/frontend/src/constants/wordbookLabels.ts）が持つ。
+  # 任意項目（自作単語帳は nil）で、値 "official" が kind と衝突するため enum ではなく定数＋inclusion で扱う。
+  LABELS = %w[none junior_high high_school eiken toeic toefl daily official].freeze
+
   # 単語帳の種類。
   # official = 公式（運営が用意 / user_id なし）、
   # personal = 自作（ユーザー所有 / user_id あり）、
@@ -16,6 +23,8 @@ class Wordbook < ApplicationRecord
   has_many :words, dependent: :destroy
 
   validates :title, presence: true
+  # label は任意（自作は nil）。付ける場合は LABELS のいずれかに限定する。
+  validates :label, inclusion: { in: LABELS }, allow_nil: true
 
   # --- 論理削除（self のみ） ---
   # 単語帳を「ゴミ箱」に入れる方式。deleted_at に印を付けるだけで words は消さないため、
@@ -30,10 +39,16 @@ class Wordbook < ApplicationRecord
 
   # validation / callback を介さない軽量更新（User#update_streak! と同じ方針）。
   # updated_at も明示的に更新する。
+  # 章（parent_id あり）は一意制約 (parent_id, part) / (parent_id, order_index) の席を
+  # 占有し続けると同じ part での再作成を DB レベルでブロックするため、論理削除時に
+  # part / order_index を NULL にして席を明け渡す（復元時は part / order_index を振り直す運用）。
+  # 親（parent_id: nil）は PostgreSQL が NULL を含む組を重複とみなさず席が競合しないため、
+  # 並び順（order_index）を保持したまま復元できるように残す。
   def discard!
     return if discarded?
 
-    update_columns(deleted_at: Time.current, updated_at: Time.current)
+    freed = parent_id.present? ? { part: nil, order_index: nil } : {}
+    update_columns(deleted_at: Time.current, updated_at: Time.current, **freed)
   end
 
   def undiscard!

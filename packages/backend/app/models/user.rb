@@ -17,6 +17,9 @@ class User < ApplicationRecord
 
   # 大小を無視して比較し、重複を省く
   validates :email, presence: true, uniqueness: { case_sensitive: false }
+  # メール形式のチェック（Ruby 標準の正規表現）。
+  # 空欄は presence 側で扱うため allow_blank にして二重エラーを防ぐ。
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP, message: "の形式が正しくありません" }, allow_blank: true
   validates :name, presence: true
   validates :password, length: { minimum: 8 }, allow_nil: true
 

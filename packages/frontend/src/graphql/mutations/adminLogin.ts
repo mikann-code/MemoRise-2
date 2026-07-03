@@ -13,6 +13,11 @@ import type { AdminLoginMutationVariables } from "@/gql/graphql";
 export const AdminLoginDocument = graphql(`
   mutation AdminLogin($email: String!, $password: String!) {
     adminLogin(email: $email, password: $password) {
+      success
+      errors {
+        field
+        message
+      }
       user {
         id
         name

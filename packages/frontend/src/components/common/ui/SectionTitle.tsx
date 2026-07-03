@@ -15,7 +15,8 @@ type Props = {
 
 export default function SectionTitle({ icon, subTitle, title }: Props) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+    // v1 踏襲：アイコンと 2 段見出しを上揃え（flex-start）で gap 8px、上に 10px の余白。
+    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, mt: "10px" }}>
       <Box
         sx={{
           flexShrink: 0,
@@ -35,7 +36,11 @@ export default function SectionTitle({ icon, subTitle, title }: Props) {
       <Box>
         <Typography
           component="p"
-          sx={{ fontSize: 13, color: "var(--color-font-secondary)" }}
+          sx={{
+            fontSize: 13,
+            lineHeight: 1.2,
+            color: "var(--color-font-secondary)",
+          }}
         >
           {subTitle}
         </Typography>
@@ -43,9 +48,10 @@ export default function SectionTitle({ icon, subTitle, title }: Props) {
           component="h2"
           sx={{
             fontSize: 22,
+            lineHeight: 1.3,
             fontFamily: "var(--font-primary)",
             color: "var(--color-font-primary)",
-            "@media (max-width:768px)": { fontSize: 18 },
+            "@media (max-width:768px)": { fontSize: 18, lineHeight: 1.2 },
           }}
         >
           {title}

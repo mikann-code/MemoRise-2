@@ -56,7 +56,7 @@ v1 スキーマ（8 テーブル）を Rails で再現する。
 **P0 / frontend** ／ blocked by: #3
 - [ ] Apollo Client を一般用 / 管理者用で分離（トークン・キャッシュ空間）
 - [ ] MUI テーマ・CssBaseline・App Router キャッシュ
-- [ ] Route Group レイアウト（`(public)` `(semi-auth)` `(auth)` `(admin-user)`）と認証ガード
+- [ ] Route Group レイアウト（`(public)` `(semi-auth)` `(auth)` `(admin)`）と認証ガード
 - [ ] 共通 UI（Button / Input / Card / Layout）と GraphQL Codegen パイプライン
 
 ## #5 認証（一般ユーザー）

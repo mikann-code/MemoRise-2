@@ -16,6 +16,8 @@ async function mockAdminGraphql(page: Page, { authenticated }: { authenticated: 
         body: JSON.stringify({
           data: {
             adminLogin: {
+              success: true,
+              errors: [],
               user: {
                 id: "1",
                 name: "管理者太郎",

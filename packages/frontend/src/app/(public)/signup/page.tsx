@@ -15,7 +15,7 @@ import { authErrorMessage } from "@/lib/auth/authError";
 
 /** 新規登録画面（(public) グループ。FormLayout をログイン画面と共用）。 */
 export default function SignUpPage() {
-  const { signUp, signUpError, submitting } = useAuth();
+  const { signUp, signUpErrors, submitting } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -77,9 +77,9 @@ export default function SignUpPage() {
             error={passwordMismatch ? "パスワードが一致しません" : undefined}
             labelIcon={<CheckCircleOutlineIcon />}
           />
-          {signUpError && (
+          {signUpErrors.length > 0 && (
             <Typography sx={{ color: "var(--color-error)", fontSize: 14, mt: -1.5, mb: 2 }}>
-              {authErrorMessage(signUpError, "登録に失敗しました")}
+              {authErrorMessage(signUpErrors, "登録に失敗しました")}
             </Typography>
           )}
           <Box sx={{ mt: 4 }}>
