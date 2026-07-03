@@ -90,5 +90,23 @@ RSpec.describe Wordbook, type: :model do
       parent.discard!
       expect(child.reload.discarded?).to be(false)
     end
+
+    it "章の #discard! は part / order_index を明け渡し、同じ値で章を再作成できる" do
+      parent = create(:wordbook, :official)
+      chapter = create(:wordbook, :official, parent: parent, part: "1", order_index: 1)
+
+      chapter.discard!
+
+      expect(chapter.reload.part).to be_nil
+      expect(chapter.order_index).to be_nil
+      recreated = create(:wordbook, :official, parent: parent, part: "1", order_index: 1)
+      expect(recreated).to be_persisted
+    end
+
+    it "親の #discard! は order_index を保持する（親同士は席が競合しないため）" do
+      parent = create(:wordbook, :official, order_index: 5)
+      parent.discard!
+      expect(parent.reload.order_index).to eq(5)
+    end
   end
 end

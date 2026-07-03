@@ -59,6 +59,19 @@ RSpec.describe Mutations::CreateAdminWordbook do
       expect(created.level).to eq("3")
       expect(created.part).to eq("1")
     end
+
+    it "論理削除済みの章と同じ part / orderIndex で章を再作成できる（席の明け渡し）" do
+      parent = create(:wordbook, :official)
+      create(:wordbook, :official, parent: parent, part: "1", order_index: 1).discard!
+
+      data = execute_create(
+        { title: "第1章（作り直し）", parentId: parent.id.to_s, part: "1", orderIndex: 1 }
+      )
+
+      expect(data["success"]).to be(true)
+      expect(data["errors"]).to eq([])
+      expect(data.dig("wordbook", "part")).to eq("1")
+    end
   end
 
   describe "異常系" do

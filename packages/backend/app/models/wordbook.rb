@@ -39,10 +39,16 @@ class Wordbook < ApplicationRecord
 
   # validation / callback を介さない軽量更新（User#update_streak! と同じ方針）。
   # updated_at も明示的に更新する。
+  # 章（parent_id あり）は一意制約 (parent_id, part) / (parent_id, order_index) の席を
+  # 占有し続けると同じ part での再作成を DB レベルでブロックするため、論理削除時に
+  # part / order_index を NULL にして席を明け渡す（復元時は part / order_index を振り直す運用）。
+  # 親（parent_id: nil）は PostgreSQL が NULL を含む組を重複とみなさず席が競合しないため、
+  # 並び順（order_index）を保持したまま復元できるように残す。
   def discard!
     return if discarded?
 
-    update_columns(deleted_at: Time.current, updated_at: Time.current)
+    freed = parent_id.present? ? { part: nil, order_index: nil } : {}
+    update_columns(deleted_at: Time.current, updated_at: Time.current, **freed)
   end
 
   def undiscard!

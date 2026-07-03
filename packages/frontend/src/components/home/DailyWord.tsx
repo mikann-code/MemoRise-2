@@ -55,6 +55,7 @@ export default function DailyWord() {
     fallbackWords[0],
   );
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ハイドレーション対策のマウント後 1 回抽選（外部システム同期ではない意図的な例外）
     setWord(fallbackWords[Math.floor(Math.random() * fallbackWords.length)]);
   }, []);
   // 復習単語 API は未実装のため 0 件（UI のみ先行）。
