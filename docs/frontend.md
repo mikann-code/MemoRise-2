@@ -11,10 +11,10 @@ App Router の Route Group `(xxx)` で、URL に出さずに権限ごとに空�
 | グループ | 認証 | 画面（実装済み） |
 | --- | --- | --- |
 | `(public)` | 不要 | `/login`、`/signup` |
-| `(auth)` | 必須 | `/`（ホーム）、`/basicWordList`、`/basicWord/[parentId]`、`/basicWord/[parentId]/[childrenId]/list`、`/basicWord/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit` |
+| `(auth)` | 必須 | `/`（ホーム）、`/basicWordList`、`/basicWord/[parentId]`、`/basicWord/[parentId]/[childrenId]/list`、`/basicWord/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test` |
 | `(admin)` | 管理者 | `/admin-login`、`/admin` |
 
-未実装（今後追加予定）：`/wordbooks/[id]/test`、`/wordbooks/review`、`/study-records`、`/my-page`、`/my-page/edit`、`/admin/users`、`/admin/wordbooks` 配下。
+未実装（今後追加予定）：`/wordbooks/review`、`/study-records`、`/my-page`、`/my-page/edit`、`/admin/users`、`/admin/wordbooks` 配下。
 
 - 親子単語帳は `/[parentId]/[childrenId]` の二段ルーティングで「TOEIC > Day 1」のような体系を表現。
 - `(auth)` は `AuthProvider`（`me` クエリ）でガードし、未認証は `/login` へリダイレクト。`(admin)` は `AdminAuthProvider`（`adminMe`）で同様にガードする。
@@ -39,7 +39,7 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | `common/ui/` | 汎用パーツ | Button / ButtonSecondary / FloatingInput / JudgeButtons / LoadingSpinner / SectionTitle |
 | `common/card/` | カード | WordCard / ErrorCard |
 | `layout/` | レイアウト | Layout（共通シェル）/ Header / Footer / FormLayout / WordbookListLayout |
-| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / BasicWordSessionProvider / WordbookSessionProvider / BasicWordTest |
+| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / BasicWordSessionProvider / WordbookSessionProvider / BasicWordTest / WordbookTest |
 | `home/` | トップ専用 | DailyWord / BasicWord / CraftWord / WeeklyStreakCard |
 
 設計指針：
@@ -73,6 +73,9 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 2. 「答えを見る」→ 正誤判定。誤答時は `addTaggedWord` を `await`（v2: `mutateAsync` 相当の Apollo mutation の await）してから次へ進め、確実にタグ登録。
 3. テスト終了（`currentIndex >= total`）を `useEffect` で検知し、`createStudyRecord`（履歴）と `completeWordbookProgress`（進捗）を発火。
 4. **冪等性**：`hasPostedRef = useRef(false)` で Strict Mode の二重実行・二重送信を防止。
+
+現状の実装（`/basicWord/.../test` = BasicWordTest、`/wordbooks/[id]/test` = WordbookTest）は、
+記録・タグの保存 API が未実装のため、2〜3 の保存部分をセッション一時状態で代替している（→ §3、#10 で対応）。
 
 ## 6. 認証・通信（v1 → v2）
 

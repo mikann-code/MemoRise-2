@@ -298,6 +298,7 @@ export default function WordbookDetailPage({ params }: Props) {
             <Box sx={{ flex: 1 }}>
               <Button
                 href={`/wordbooks/${wordbookId}/test`}
+                disabled={words.length === 0}
                 color="#3b82f6"
                 hoverColor="#2563eb"
               >
@@ -305,6 +306,30 @@ export default function WordbookDetailPage({ params }: Props) {
               </Button>
             </Box>
           </Box>
+
+          {words.length === 0 && (
+            <Box
+              sx={{
+                mt: "20px",
+                p: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                border: "1px dashed var(--color-border)",
+                borderRadius: "10px",
+              }}
+            >
+              <LightbulbOutlinedIcon
+                sx={{ fontSize: 20, color: "var(--color-primary)" }}
+              />
+              <Typography
+                sx={{ fontSize: 13, color: "var(--color-font-secondary)" }}
+              >
+                単語を登録して、今すぐテストを始めよう！
+              </Typography>
+            </Box>
+          )}
         </Box>
       }
       list={
