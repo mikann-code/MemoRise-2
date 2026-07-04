@@ -6,7 +6,8 @@
 
 - `ActionController::API` ベースの API 専用構成。認証は **DB セッション方式**（`activerecord-session_store`、Cookie `_memorise_session`。v1 の JWT から変更、経緯は [migration-rationale.md](./migration-rationale.md) §7）。
 - v1 は名前空間 `api/v1`（一般）と `api/admin`（管理者）で物理分離していた。v2 では **GraphQL の単一エンドポイント**に統一しつつ、**認証コンテキスト（current_user / current_admin）と Resolver レベルの認可**で一般／管理者の境界を表現する。
-- キュー・キャッシュ・セッションは **Solid 系（PostgreSQL ベース、Redis 不使用）**。
+- セッションは `activerecord-session_store`（PostgreSQL、導入済み）。キュー・キャッシュは
+  **Solid 系（PostgreSQL ベース、Redis 不使用）を採用予定**だが現状未導入（Gemfile の NOTE 参照）。
 
 ## 2. データモデル
 
@@ -26,13 +27,15 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 - `after_create :create_default_wordbook` で「はじめての単語帳」を自動生成。
 - `update_streak!`：今日未更新かつ昨日学習済みなら +1、そうでなければ 1。`update_columns` で軽量更新、二度押し冪等。
 
-### admin_users
+### admin_users（設計案・未実装）
 | カラム | 型 |
 | --- | --- |
 | email | string |
 | password_digest | string |
 
-- 管理者は users と**別テーブル**で管理（権限境界の物理分離）。
+- 設計では管理者を users と**別テーブル**で管理（権限境界の物理分離）としていたが、
+  **現状は `users.role` で管理者を判定**しており `admin_users` テーブルは作っていない。
+  別テーブル化するかは未確定（要決定）。
 
 ### wordbooks（公式・自作を 1 テーブルで表現）
 | カラム | 型 | 備考 |
@@ -107,6 +110,16 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 
 > スキーマ（`schema.graphql`）の出力 → フロント型生成（Codegen）までの運用手順は [graphql.md](./graphql.md)。
 
+**実装状況**（`schema.graphql` が正）：
+
+- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)`
+- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`
+- 未実装：`todayWord` / `totalWords` / `taggedWords` / `studyRecords` 系 / `wordbookProgresses`、`updateProfile` / `studyWordbook` / `addTaggedWord` / `removeTaggedWord` / `createStudyRecord` / `completeWordbookProgress`、`adminUsers` / `adminStats` / 管理者の単語 CRUD / `importCsv`
+  （テーブル自体は §2 のとおり作成済み。フロントは未実装分をクライアント一時状態でフォールバック中 → [frontend.md](./frontend.md) §3）
+
+**Mutation の返却規約**：例外を投げず `{ success, errors: [{ field, message }] }` 形式の Payload を返す。
+認可失敗（本人以外・非管理者）も errors に載せる。**クエリの失敗は raise**（従来どおり GraphQL エラー）。
+
 ### Query（一般ユーザー）
 | v1 REST | v2 GraphQL Query |
 | --- | --- |
@@ -151,7 +164,7 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 - `login` / `signUp` Mutation の成功時に `session[:user_id]` を設定し、`logout` Mutation で `reset_session`（`sessions` レコードも破棄）。**トークンは発行・返却しない**。`logout` はログイン状態に関わらず常に成功を返す冪等仕様。
 - `GraphqlController` が毎リクエストで `session[:user_id]` から `User` を解決し、`role` で `current_user`（一般）/ `current_admin`（管理者）に振り分けて GraphQL コンテキストに載せる。
 - ログイン失敗時はメール存在の有無を秘匿して同一メッセージ（`UNAUTHORIZED`）を返す。
-- ※ 管理者認証（`adminLogin` 等）は未実装。現状の `current_admin` は **単一 `users` テーブルの `role`** から解決する足場のみで、§2 の `admin_users` 別テーブル設計とどちらを採るかは未確定（要決定）。
+- 管理者認証は `adminLogin` / `adminMe` として実装済み。`current_admin` は **単一 `users` テーブルの `role`** から解決しており、§2 の `admin_users` 別テーブル設計とどちらを採るかは未確定（要決定）。
 
 ## 6. 横断的関心事
 
@@ -159,9 +172,9 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 - **ログフィルタ**：passw / email / secret / token / _key / crypt / salt / certificate / otp / ssn / cvv / cvc を除外。
 - **ロケール**：`config/locales/ja.yml`。タイムゾーン JST。
 - **ヘルスチェック**：`GET /up`（Kamal / LB 監視用）。
-- **品質**：RuboCop（omakase）/ Brakeman / bundler-audit。
-- **画像 / メール**：Active Storage + image_processing（S3）、SES v2（メール）。
-- **デプロイ**：Kamal（`.kamal/` + `config/deploy.yml`）。
+- **品質**：RuboCop（omakase）/ Brakeman / bundler-audit（導入済み）。
+- **画像 / メール**（未導入・予定）：Active Storage + image_processing（S3）、SES v2（メール）。
+- **デプロイ**（未導入・予定）：Kamal（`.kamal/` + `config/deploy.yml`）。
 
 ## 7. v1 → v2 移行で注意する点
 
