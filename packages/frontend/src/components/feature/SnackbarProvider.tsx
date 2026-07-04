@@ -17,8 +17,8 @@ import ButtonBase from "@mui/material/ButtonBase";
  * window.confirm / window.alert の代替となる自作 UI。
  * - confirm(message): 画面全体を暗くして中央にメッセージ + OK / キャンセルを表示し
  *   Promise<boolean> を返す（オーバーレイのクリックはキャンセル扱い）
- * - notify(message) : 下部（Footer の上）に下からスライドインで表示し、
- *   一定時間後にフェードアウトして自動で消える
+ * - notify(message) : 下部（Footer の上）に表示し、一定時間後に自動で消える
+ * どちらも同じ動き（下からスライドイン → 下に沈みながらフェードアウト）で出入りする。
  * 確認中に別の confirm が呼ばれた場合、先の確認はキャンセル（false）扱いで置き換える。
  */
 
@@ -43,7 +43,8 @@ type ConfirmState = {
 };
 
 const NOTIFY_DURATION_MS = 2000;
-const NOTIFY_EXIT_MS = 200;
+const ENTER_ANIMATION = "300ms cubic-bezier(0.22, 1, 0.36, 1) both";
+const EXIT_ANIMATION_MS = 200;
 
 const overlaySx = {
   position: "fixed" as const,
@@ -53,6 +54,14 @@ const overlaySx = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  "@keyframes overlay-in": {
+    from: { opacity: 0 },
+    to: { opacity: 1 },
+  },
+  "@keyframes overlay-out": {
+    from: { opacity: 1 },
+    to: { opacity: 0 },
+  },
 };
 
 const dialogSx = {
@@ -66,6 +75,14 @@ const dialogSx = {
   display: "flex",
   flexDirection: "column" as const,
   gap: "24px",
+  "@keyframes dialog-in": {
+    from: { opacity: 0, transform: "translateY(24px)" },
+    to: { opacity: 1, transform: "translateY(0)" },
+  },
+  "@keyframes dialog-out": {
+    from: { opacity: 1, transform: "translateY(0)" },
+    to: { opacity: 0, transform: "translateY(12px)" },
+  },
 };
 
 const barSx = {
@@ -101,6 +118,8 @@ export default function SnackbarProvider({
   children: ReactNode;
 }) {
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  // true の間は確認ダイアログの退場アニメーション中（結果は解決済み）。
+  const [confirmLeaving, setConfirmLeaving] = useState(false);
   const confirmRef = useRef<ConfirmState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   // true の間は退場アニメーション中。終了（onAnimationEnd）で DOM から外す。
@@ -113,13 +132,16 @@ export default function SnackbarProvider({
       const state = { message, resolve };
       confirmRef.current = state;
       setConfirmState(state);
+      setConfirmLeaving(false);
     });
   }, []);
 
+  // 結果は即座に resolve し、ダイアログは退場アニメーション後に DOM から外す。
   const settleConfirm = (ok: boolean) => {
+    if (confirmLeaving) return;
     confirmRef.current?.resolve(ok);
     confirmRef.current = null;
-    setConfirmState(null);
+    setConfirmLeaving(true);
   };
 
   const notify = useCallback((message: string) => {
@@ -144,9 +166,28 @@ export default function SnackbarProvider({
       {children}
 
       {confirmState && (
-        <Box sx={overlaySx} onClick={() => settleConfirm(false)}>
+        <Box
+          sx={{
+            ...overlaySx,
+            animation: confirmLeaving
+              ? `overlay-out ${EXIT_ANIMATION_MS}ms ease-in forwards`
+              : "overlay-in 200ms ease-out both",
+          }}
+          onClick={() => settleConfirm(false)}
+          onAnimationEnd={() => {
+            if (confirmLeaving) {
+              setConfirmState(null);
+              setConfirmLeaving(false);
+            }
+          }}
+        >
           <Box
-            sx={dialogSx}
+            sx={{
+              ...dialogSx,
+              animation: confirmLeaving
+                ? `dialog-out ${EXIT_ANIMATION_MS}ms ease-in forwards`
+                : `dialog-in ${ENTER_ANIMATION}`,
+            }}
             role="alertdialog"
             aria-label={confirmState.message}
             onClick={(e) => e.stopPropagation()}
@@ -192,8 +233,8 @@ export default function SnackbarProvider({
           sx={{
             ...barSx,
             animation: noticeLeaving
-              ? `notify-out ${NOTIFY_EXIT_MS}ms ease-in forwards`
-              : "notify-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both",
+              ? `notify-out ${EXIT_ANIMATION_MS}ms ease-in forwards`
+              : `notify-in ${ENTER_ANIMATION}`,
           }}
           role="status"
           onAnimationEnd={() => {

@@ -102,7 +102,7 @@ Issue → ブランチ `<種別>/issue-<番号>`（例 `feature/issue-8`）→ �
 - **列挙の分け方**：カテゴリ値 = Rails 定数配列 + FE 表示名マップ、status = Rails enum +
   GraphQL enum。値の検証はバックエンドで行う。
 - **window.confirm / window.alert は禁止**：`components/feature/SnackbarProvider` の
-  `useSnackbar()`（confirm = 暗転 + 中央モーダル / notify = 下部通知）を使う。
+  `useSnackbar()`（confirm = 暗転 + 中央モーダル / notify = 下からスライドインする自動消滅通知）を使う。
 - **単語テキストは省略しない**：WordCard の question / answer は ellipsis・1 行制限をせず
   折り返しで全文表示。狭い画面ではアイコン側を「…」メニューに集約する。
 - Apollo v4 の useQuery ラッパーで options をスプレッドしない（DeepPartial に落ちて
