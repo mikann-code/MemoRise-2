@@ -16,6 +16,22 @@ module Types
     field :delete_admin_wordbook, mutation: Mutations::DeleteAdminWordbook,
       description: "公式単語帳の削除（管理者専用・論理削除）"
 
+    # 自作単語帳の CRUD（一般ユーザー専用）。閲覧は Query 側の myWordbooks / myWordbook。
+    field :create_wordbook, mutation: Mutations::CreateWordbook,
+      description: "自作単語帳の作成（要ログイン）"
+    field :update_wordbook, mutation: Mutations::UpdateWordbook,
+      description: "自作単語帳の更新（本人のみ）"
+    field :delete_wordbook, mutation: Mutations::DeleteWordbook,
+      description: "自作単語帳の削除（本人のみ・論理削除。単語は残す）"
+
+    # 自作単語帳の単語 CRUD（一般ユーザー専用）。
+    field :create_word, mutation: Mutations::CreateWord,
+      description: "自作単語帳への単語の追加（本人のみ）"
+    field :update_word, mutation: Mutations::UpdateWord,
+      description: "単語の更新（本人のみ）"
+    field :delete_word, mutation: Mutations::DeleteWord,
+      description: "単語の削除（本人のみ・物理削除）"
+
     # 動作確認用プレースホルダ（疎通テストで使用）。
     field :noop, Boolean, null: false, description: "プレースホルダ"
 

@@ -11,6 +11,8 @@ module Types
     field :order_index, Integer, null: true, description: "章の並び順"
     field :kind, String, null: false, description: "official / personal / shared"
     field :words_count, Integer, null: false, description: "登録単語数（counter_cache）"
+    field :last_studied, GraphQL::Types::ISO8601DateTime, null: true,
+      description: "最終学習日時（未学習なら null）"
     field :children, [ Types::WordbookType ], null: false,
       description: "子（章）。論理削除を除外し order_index 昇順"
     field :words, [ Types::WordType ], null: false, description: "この単語帳の単語"

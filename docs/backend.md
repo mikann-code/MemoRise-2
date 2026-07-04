@@ -113,8 +113,8 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 | `GET /me` | `me` |
 | `GET /today_word` | `todayWord` |
 | `GET /stats/total_words` | `totalWords` |
-| `GET /wordbooks` `/wordbooks/:uuid` | `wordbooks` / `wordbook(uuid)` |
-| `GET /wordbooks/:uuid/words` | `wordbook.words` |
+| `GET /wordbooks` `/wordbooks/:uuid` | `myWordbooks` / `myWordbook(id)`（自作のみ・本人スコープ） |
+| `GET /wordbooks/:uuid/words` | `myWordbook.words` |
 | `GET /public_wordbooks` `:uuid/children` `:uuid/words` | `publicWordbooks` / `publicWordbook(uuid){ children, words }` |
 | `GET /user_word_tags` | `taggedWords` |
 | `GET /study_records` `recent` `week` | `studyRecords(year,month)` / `studyRecordsRecent` / `studyRecordsWeek(startDate)` |
@@ -127,7 +127,7 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 | `POST /login` | `login` |
 | `PUT /me` | `updateProfile` |
 | `POST /wordbooks` `PUT/DELETE` | `createWordbook` / `updateWordbook` / `deleteWordbook` |
-| `POST /wordbooks/:uuid/words` `DELETE` | `createWord` / `deleteWord` |
+| `POST /wordbooks/:uuid/words` `DELETE` | `createWord` / `updateWord` / `deleteWord`（`updateWord` は v2 追加） |
 | `POST /wordbooks/:uuid/study` | `studyWordbook` |
 | `POST/DELETE /user_word_tags` | `addTaggedWord` / `removeTaggedWord` |
 | `POST /study_records` | `createStudyRecord` |

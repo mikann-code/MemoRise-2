@@ -23,8 +23,9 @@ class Wordbook < ApplicationRecord
   has_many :words, dependent: :destroy
 
   validates :title, presence: true
-  # label は任意（自作は nil）。付ける場合は LABELS のいずれかに限定する。
-  validates :label, inclusion: { in: LABELS }, allow_nil: true
+  # label は任意。official はカテゴリ分類なので LABELS のいずれかに限定する。
+  # personal は v1 と同じ自由入力（例: 英語 / IT / TOEIC）のため inclusion を掛けない。
+  validates :label, inclusion: { in: LABELS }, allow_nil: true, if: :official?
 
   # --- 論理削除（self のみ） ---
   # 単語帳を「ゴミ箱」に入れる方式。deleted_at に印を付けるだけで words は消さないため、

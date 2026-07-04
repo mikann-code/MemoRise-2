@@ -5,7 +5,18 @@ RSpec.describe Wordbook, type: :model do
     subject { build(:wordbook) }
 
     it { is_expected.to validate_presence_of(:title) }
-    it { is_expected.to validate_inclusion_of(:label).in_array(Wordbook::LABELS).allow_nil }
+
+    context "label が official の場合（カテゴリ分類）" do
+      subject { build(:wordbook, :official) }
+
+      it { is_expected.to validate_inclusion_of(:label).in_array(Wordbook::LABELS).allow_nil }
+    end
+
+    context "label が personal の場合（v1 のラベル欄と同じ自由入力）" do
+      it "LABELS に無い値も保存できる" do
+        expect(build(:wordbook, label: "IT")).to be_valid
+      end
+    end
   end
 
   describe "関連" do
