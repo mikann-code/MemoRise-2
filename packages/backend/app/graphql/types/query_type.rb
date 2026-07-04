@@ -13,6 +13,12 @@ module Types
     field :public_wordbook, resolver: Resolvers::PublicWordbook,
       description: "公式単語帳の親 1 件（子＝章・単語まで。読み取り専用・要ログイン）"
 
+    # 自作単語帳の閲覧（本人のみ・要ログイン）。current_user スコープで他人・公式を除外する。
+    field :my_wordbooks, resolver: Resolvers::MyWordbooks,
+      description: "自作単語帳の一覧（本人の personal のみ・論理削除を除く・要ログイン）"
+    field :my_wordbook, resolver: Resolvers::MyWordbook,
+      description: "自作単語帳 1 件（単語まで。本人以外・公式・論理削除済みは null）"
+
     # 動作確認用フィールド。
     field :health, String, null: false, description: "API 稼働確認用"
 

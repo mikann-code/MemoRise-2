@@ -25,45 +25,58 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <FormLayout
-      header={
-        <Typography variant="h4" component="h1" fontWeight={700}>
-          管理者ログイン
-        </Typography>
-      }
-      description="管理者のメールアドレスとパスワードでログインします。"
-      form={
-        <Box component="form" onSubmit={handleSubmit} noValidate>
-          <FloatingInput
-            id="email"
-            label="メールアドレス"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={submitting}
-            labelIcon={<MailOutlineIcon />}
-          />
-          <FloatingInput
-            id="password"
-            label="パスワード"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={submitting}
-            labelIcon={<LockOutlinedIcon />}
-          />
-          {adminLoginErrors.length > 0 && (
-            <Typography sx={{ color: "var(--color-error)", fontSize: 14, mt: -1.5, mb: 2 }}>
-              {authErrorMessage(adminLoginErrors, "ログインに失敗しました")}
-            </Typography>
-          )}
-          <Box sx={{ mt: 4 }}>
-            <Button type="submit" disabled={submitting || !email || !password}>
-              {submitting ? "ログイン中..." : "ログイン"}
-            </Button>
+    // ヘッダーの無い画面のため、(public)/layout.tsx と同様に幅と縦余白をここで確保する。
+    <Box sx={{ maxWidth: 560, mx: "auto", px: 3, py: 6 }}>
+      <FormLayout
+        header={
+          <Typography variant="h4" component="h1" fontWeight={700}>
+            管理者ログイン
+          </Typography>
+        }
+        description="管理者のメールアドレスとパスワードでログインします。"
+        form={
+          <Box component="form" onSubmit={handleSubmit} noValidate>
+            <FloatingInput
+              id="email"
+              label="メールアドレス"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={submitting}
+              labelIcon={<MailOutlineIcon />}
+            />
+            <FloatingInput
+              id="password"
+              label="パスワード"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={submitting}
+              labelIcon={<LockOutlinedIcon />}
+            />
+            {adminLoginErrors.length > 0 && (
+              <Typography
+                sx={{
+                  color: "var(--color-error)",
+                  fontSize: 14,
+                  mt: -1.5,
+                  mb: 2,
+                }}
+              >
+                {authErrorMessage(adminLoginErrors, "ログインに失敗しました")}
+              </Typography>
+            )}
+            <Box sx={{ mt: 4 }}>
+              <Button
+                type="submit"
+                disabled={submitting || !email || !password}
+              >
+                {submitting ? "ログイン中..." : "ログイン"}
+              </Button>
+            </Box>
           </Box>
-        </Box>
-      }
-    />
+        }
+      />
+    </Box>
   );
 }

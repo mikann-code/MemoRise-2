@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@/components/common/ui/Button";
-import ButtonSecondary from "@/components/common/ui/ButtonSecondary";
 
 /**
  * エラー / 空状態カード。本文 + 主アクション（+任意で従アクション）を宣言的に表示する。
@@ -62,9 +61,9 @@ export default function ErrorCard({
         </Box>
         {hasSecondary && (
           <Box sx={{ flex: 1 }}>
-            <ButtonSecondary href={secondaryHref}>
+            <Button href={secondaryHref} color="#3b82f6" hoverColor="#2563eb">
               {secondaryButtonLabel}
-            </ButtonSecondary>
+            </Button>
           </Box>
         )}
       </Box>

@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import NextLink from "next/link";
 import Box from "@mui/material/Box";
 import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import StarIcon from "@mui/icons-material/Star";
-import { SectionTitle } from "@/components/common/ui";
+import { SectionTitle, Button } from "@/components/common/ui";
 import { fallbackWords } from "@/constants/fallbackWords";
 
 /**
@@ -13,30 +12,6 @@ import { fallbackWords } from "@/constants/fallbackWords";
  * v1 と同じくマウント時に fallbackWords から 1 件だけ抽選して表示し、
  * 復習バッジは 0 件のプレースホルダで先行表示する（API 接続は後続）。
  */
-
-// 復習ボタン（青系の立体ボタン。DailyWord 専用）。
-const reviewButton = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 0.75,
-  px: "14px",
-  py: "8px",
-  borderRadius: "6px",
-  backgroundColor: "#3b82f6",
-  color: "var(--color-font-primary)",
-  fontSize: 14,
-  fontWeight: 500,
-  textDecoration: "none",
-  boxShadow: "0 4px 0 #173462",
-  transition: "all .2s ease",
-  "&:hover": {
-    backgroundColor: "#2563eb",
-    transform: "translateY(2px)",
-    boxShadow: "0 1px 0 #173462",
-  },
-  "@media (max-width:768px)": { px: 1, py: 0.75, fontSize: 12 },
-};
 
 const wordCell = {
   flex: 1,
@@ -76,9 +51,14 @@ export default function DailyWord() {
           subTitle="Today’s Vocab"
           title="今日の一問"
         />
-        <Box component={NextLink} href="/wordbooks/review" sx={reviewButton}>
+        <Button
+          href="/wordbooks/review"
+          size="compact"
+          color="#3b82f6"
+          hoverColor="#2563eb"
+        >
           <StarIcon sx={{ fontSize: 16 }} /> 復習単語 ( {reviewCount} )
-        </Box>
+        </Button>
       </Box>
 
       <Box
