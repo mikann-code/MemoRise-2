@@ -6,12 +6,7 @@ import Typography from "@mui/material/Typography";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import {
-  SectionTitle,
-  Button,
-  ButtonSecondary,
-  LoadingSpinner,
-} from "@/components/common/ui";
+import { SectionTitle, Button, LoadingSpinner } from "@/components/common/ui";
 import { useMeQuery } from "@/graphql/queries/me";
 import { usePublicWordbooksQuery } from "@/graphql/queries/publicWordbooks";
 
@@ -19,30 +14,6 @@ import { usePublicWordbooksQuery } from "@/graphql/queries/publicWordbooks";
  * 公式単語帳（ホーム）。未ログイン時はログイン導線カードに差し替え（v1 踏襲）。
  * ログイン時は publicWordbooks を横スクロールのブックカードで並べる。
  */
-
-// 「一覧を見る」ボタン（オレンジ系の立体ボタン）。
-const archiveButton = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 0.75,
-  px: "14px",
-  py: "8px",
-  borderRadius: "6px",
-  backgroundColor: "var(--color-primary)",
-  color: "var(--color-font-primary)",
-  fontSize: 14,
-  fontWeight: 500,
-  textDecoration: "none",
-  boxShadow: "0 4px 0 #66441f",
-  transition: "all .2s ease",
-  "&:hover": {
-    backgroundColor: "var(--color-secondary)",
-    transform: "translateY(2px)",
-    boxShadow: "0 1px 0 #66441f",
-  },
-  "@media (max-width:768px)": { px: 1, py: 0.75, fontSize: 12 },
-};
 
 // 未ログイン時のアクション行（v1 .actionsWrapper と同値）。
 const loginActions = {
@@ -111,7 +82,9 @@ export default function BasicWord() {
           </Typography>
           <Box sx={loginActions}>
             <Button href="/login">ログインする</Button>
-            <ButtonSecondary href="/signup">新規登録</ButtonSecondary>
+            <Button href="/signup" color="#3b82f6" hoverColor="#2563eb">
+              新規登録
+            </Button>
           </Box>
         </Box>
       </Box>
@@ -129,9 +102,9 @@ export default function BasicWord() {
         }}
       >
         {header}
-        <Box component={NextLink} href="/basicWordList" sx={archiveButton}>
+        <Button href="/basicWordList" size="compact">
           <FormatListBulletedIcon sx={{ fontSize: 16 }} /> 一覧を見る
-        </Box>
+        </Button>
       </Box>
 
       {loading ? (

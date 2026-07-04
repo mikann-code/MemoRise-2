@@ -3,6 +3,7 @@ import Box from "@mui/material/Box";
 
 /**
  * 単語帳系画面の共通骨格（Slot 型）。見出し + 任意の追加フォーム + 一覧、という構成を受け取る。
+ * 幅と余白は Layout 側の main Container に任せ、ここは width 100% で並べるだけにする。
  */
 type Props = {
   header: ReactNode;
@@ -20,10 +21,7 @@ export default function WordbookListLayout({
   return (
     <Box
       sx={{
-        maxWidth: 800,
-        mx: "auto",
-        px: 3,
-        py: 4,
+        width: "100%",
         display: "flex",
         flexDirection: "column",
         gap: 3,

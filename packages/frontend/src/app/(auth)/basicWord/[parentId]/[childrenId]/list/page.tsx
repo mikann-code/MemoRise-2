@@ -5,15 +5,11 @@ import { useParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import {
-  SectionTitle,
-  LoadingSpinner,
-  Button,
-  ButtonSecondary,
-} from "@/components/common/ui";
+import { SectionTitle, LoadingSpinner, Button } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { usePublicWordbookChaptersQuery } from "@/graphql/queries/publicWordbookChapters";
 import { useBasicWordSession } from "@/components/feature/BasicWordSessionProvider";
+import { useSnackbar } from "@/components/feature/SnackbarProvider";
 
 /**
  * 章（Part）の単語一覧（(auth)・読み取り専用）。全単語を答え開いた状態のカードで並べる。
@@ -29,6 +25,7 @@ export default function BasicWordListChapterPage() {
     variables: { id: parentId },
   });
   const { isTagged, toggleTag } = useBasicWordSession();
+  const { confirm } = useSnackbar();
 
   const chapter =
     data?.publicWordbook?.children.find((c) => c.id === childrenId) ?? null;
@@ -67,10 +64,10 @@ export default function BasicWordListChapterPage() {
   const words = chapter.words;
 
   // 復習タグの外し操作だけ確認する（v1 踏襲）。付ける操作はそのまま。
-  const handleTagToggle = (wordId: string) => {
+  const handleTagToggle = async (wordId: string) => {
     if (
       isTagged(wordId) &&
-      !window.confirm("この単語を復習リストから外しますか？")
+      !(await confirm("この単語を復習リストから外しますか？"))
     ) {
       return;
     }
@@ -95,11 +92,13 @@ export default function BasicWordListChapterPage() {
           <Button href={`/basicWord/${parentId}`}>教材トップに戻る</Button>
         </Box>
         <Box sx={{ flex: 1 }}>
-          <ButtonSecondary
+          <Button
             href={`/basicWord/${parentId}/${childrenId}/test`}
+            color="#3b82f6"
+            hoverColor="#2563eb"
           >
             今すぐはじめる
-          </ButtonSecondary>
+          </Button>
         </Box>
       </Box>
 

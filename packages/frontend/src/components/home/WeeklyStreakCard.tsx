@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
-import { SectionTitle, Button, ButtonSecondary } from "@/components/common/ui";
+import { SectionTitle, Button } from "@/components/common/ui";
 import { useMeQuery } from "@/graphql/queries/me";
 
 /**
@@ -100,7 +100,9 @@ export default function WeeklyStreakCard() {
           </Typography>
           <Box sx={loginActions}>
             <Button href="/login">ログインする</Button>
-            <ButtonSecondary href="/signup">新規登録</ButtonSecondary>
+            <Button href="/signup" color="#3b82f6" hoverColor="#2563eb">
+              新規登録
+            </Button>
           </Box>
         </Box>
       </Box>
