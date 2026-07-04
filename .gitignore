@@ -21,7 +21,7 @@ packages/frontend/src/gql/
 packages/backend/schema.json
 
 # playwright
-packages/frontend/test-results/
+test-results/
 packages/frontend/playwright-report/
 packages/frontend/playwright/.cache/
 packages/frontend/blob-report/
