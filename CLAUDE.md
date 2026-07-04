@@ -33,6 +33,8 @@ v1（兄弟ディレクトリ `../MemoRise`）を Rails + GraphQL + Next.js で�
 
 - `app/graphql/` — スキーマ・types・mutations・resolvers
 - `app/models/` / `db/` / `spec/`
+- 認証は Cookie セッション（`session[:user_id]`）。users 単一テーブルを `role` で振り分け、
+  `GraphqlController` が GraphQL context に `current_user` / `current_admin` を載せる。
 - `schema.graphql` — GraphQL 変更時に `bin/rails graphql:schema:dump` で再生成してコミット
   （フロントの codegen がこれを読む。手順は `docs/graphql.md`）
 
@@ -60,13 +62,32 @@ npx playwright test e2e/xxx.spec.ts --reporter=line
 docker compose up            # 全サービス起動（BE: http://localhost:3100）
 docker compose exec -e RAILS_ENV=test backend bundle exec rspec
 # ※ RAILS_ENV=test を明示しないと dev DB に対して走るので注意
+
+# lint（CI 必須。コミット前に実行）
+npm --prefix packages/frontend run lint
+docker compose exec backend bundle exec rubocop
 ```
 
 ## 開発フロー
 
 Issue → ブランチ `<種別>/issue-<番号>`（例 `feature/issue-8`）→ 実装 + テスト同一 PR →
-自己レビュー → CI グリーン → Squash and merge。コミットは Conventional Commits。
+自己レビュー → CI グリーン → Squash and merge。
 詳細と Definition of Done は `docs/workflow.md`。
+
+- **CI（= PR 前にローカルで通すもの）**：FE は lint → build → E2E、BE は rubocop → rspec
+  （`.github/workflows/ci.yml`）。バージョンは Node 22 / Ruby 3.4.5 / PostgreSQL 16。
+- **コミット・PR の言語**：Conventional Commits の type（feat / fix / docs 等）は英語、
+  説明は日本語（例 `feat(backend): 自作単語帳と単語の CRUD を実装`）。PR タイトル・本文も日本語。
+
+## テスト規約
+
+- **BE**：GraphQL は `spec/requests/graphql/<オペレーション名>_spec.rb` に 1 オペレーション
+  1 ファイル、モデルは `spec/models/`。データは FactoryBot（`spec/factories/`）。
+  resolver / mutation の認可検証は `execute_graphql(query, context: { current_user: user })`
+  （`spec/support/graphql_helpers.rb`）で context を直接注入し、Cookie・セッション破棄の
+  往復まで見たい認証ライフサイクル系のみ HTTP 経由で検証する。
+- **FE（E2E）**：`e2e/<機能>.spec.ts` に 1 機能 1 ファイル。バックエンドは起動せず
+  `page.route("**/graphql")` で GraphQL をモックし、`Me` をモックしてログイン状態を作る。
 
 ## 実装規約
 
@@ -74,6 +95,10 @@ Issue → ブランチ `<種別>/issue-<番号>`（例 `feature/issue-8`）→ �
   current_user から引く。クエリの失敗は raise。
 - **mutation は success/errors 方式**：例外でなく `{ success, errors: [{ field, message }] }`
   を返す（認可失敗も errors に載せる）。
+- **フォームのサーバーエラーは errors 配列のまま持つ**：`{field, message}[]` を state に
+  保持し、表示時に field 名で引く（`fieldError()` ヘルパー）。キー付きオブジェクト型への
+  変換関数は作らない。入力欄に紐付かない field（`system` / `id` 等）はフォーム下にまとめて
+  表示する。認証画面のみ先頭 1 件の 1 行表示（`authErrorMessage`）。
 - **列挙の分け方**：カテゴリ値 = Rails 定数配列 + FE 表示名マップ、status = Rails enum +
   GraphQL enum。値の検証はバックエンドで行う。
 - **window.confirm / window.alert は禁止**：`components/feature/SnackbarProvider` の
