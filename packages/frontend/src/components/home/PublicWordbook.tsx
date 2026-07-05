@@ -47,7 +47,7 @@ const scrollRow = {
   },
 };
 
-export default function BasicWord() {
+export default function PublicWordbook() {
   const { data: meData, loading: meLoading } = useMeQuery({
     errorPolicy: "all",
   });
@@ -102,7 +102,7 @@ export default function BasicWord() {
         }}
       >
         {header}
-        <Button href="/basicWordList" size="compact">
+        <Button href="/publicWordbooks" size="compact">
           <FormatListBulletedIcon sx={{ fontSize: 16 }} /> 一覧を見る
         </Button>
       </Box>
@@ -125,7 +125,7 @@ export default function BasicWord() {
             <Box
               key={item.id}
               component={NextLink}
-              href={`/basicWord/${item.id}`}
+              href={`/publicWordbooks/${item.id}`}
               sx={{
                 display: "flex",
                 flexDirection: "column",

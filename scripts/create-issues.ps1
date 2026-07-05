@@ -106,7 +106,7 @@ $issues += @{ labels = "epic,backend,frontend"; title = "公式単語帳の閲�
 ## 受け入れ条件
 - [ ] 公式単語帳の親一覧 → 子（章）→ 単語の取得（読み取り専用）
 - [ ] ラベル / レベル / パートの表示
-- [ ] /basicWordList・/basicWord/[parentId]・子の一覧/テスト導線
+- [ ] /publicWordbooks・/publicWordbooks/[parentId]・子の一覧/テスト導線
 - [ ] 該当ロジックの RSpec（正常系 + 認可/異常系）
 - [ ] 代表導線の Playwright E2E を 1 本
 "@ }

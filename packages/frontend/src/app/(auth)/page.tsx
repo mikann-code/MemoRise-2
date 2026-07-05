@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 import {
   DailyWord,
-  BasicWord,
+  PublicWordbook,
   CraftWord,
   WeeklyStreakCard,
 } from "@/components/home";
@@ -15,7 +15,7 @@ export default function Home() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 5 }}>
       <DailyWord />
-      <BasicWord />
+      <PublicWordbook />
       <CraftWord />
       <WeeklyStreakCard />
     </Box>

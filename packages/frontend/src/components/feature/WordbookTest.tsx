@@ -76,7 +76,7 @@ function ProgressInfo({ current, total, rate }: { current: number; total: number
 }
 
 /**
- * 自作単語帳の単語テスト本体（v1 の TestBody を踏襲。公式単語帳の BasicWordTest と同じ見た目）。
+ * 自作単語帳の単語テスト本体（v1 の TestBody を踏襲。公式単語帳の PublicWordbookTest と同じ見た目）。
  * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。
  * 誤答の復習タグは自動登録せず、結果画面の「間違えた単語を復習リストに登録」（confirm あり）で
  * まとめて登録する（docs/frontend.md §5）。

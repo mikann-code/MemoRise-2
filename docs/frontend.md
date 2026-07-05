@@ -11,7 +11,7 @@ App Router の Route Group `(xxx)` で、URL に出さずに権限ごとに空�
 | グループ | 認証 | 画面（実装済み） |
 | --- | --- | --- |
 | `(public)` | 不要 | `/login`、`/signup` |
-| `(auth)` | 必須 | `/`（ホーム）、`/basicWordList`、`/basicWord/[parentId]`、`/basicWord/[parentId]/[childrenId]/list`、`/basicWord/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`（復習単語一覧）、`/wordbooks/review/test`（復習専用テスト）、`/study-records`（学習記録） |
+| `(auth)` | 必須 | `/`（ホーム）、`/publicWordbooks`、`/publicWordbooks/[parentId]`、`/publicWordbooks/[parentId]/[childrenId]/list`、`/publicWordbooks/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`（復習単語一覧）、`/wordbooks/review/test`（復習専用テスト）、`/study-records`（学習記録） |
 | `(admin)` | 管理者 | `/admin-login`、`/admin` |
 
 未実装（今後追加予定）：`/my-page`、`/my-page/edit`、`/admin/users`、`/admin/wordbooks` 配下。
@@ -39,8 +39,8 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | `common/ui/` | 汎用パーツ | Button / ButtonSecondary / FloatingInput / JudgeButtons / LoadingSpinner / SectionTitle |
 | `common/card/` | カード | WordCard / ErrorCard / DailyRecordCard（学習記録 1 日分） |
 | `layout/` | レイアウト | Layout（共通シェル）/ Header / Footer / FormLayout / WordbookListLayout |
-| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / BasicWordSessionProvider / ReviewTagProvider / BasicWordTest / WordbookTest / StudyCalendar（学習カレンダー） |
-| `home/` | トップ専用 | DailyWord / BasicWord / CraftWord / WeeklyStreakCard |
+| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / PublicWordbookSessionProvider / ReviewTagProvider / PublicWordbookTest / WordbookTest / StudyCalendar（学習カレンダー） |
+| `home/` | トップ専用 | DailyWord / PublicWordbook / CraftWord / WeeklyStreakCard |
 
 設計指針：
 - **Composition**：`FormLayout` / `WordbookListLayout` は header / form / list 等を ReactNode で受ける Slot 型。幅・余白は `Layout` の main `Container` に一元化し、内側のレイアウトは `width: 100%` で並べるだけにする。
@@ -48,16 +48,16 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
   - q / a の 2 セル flex が基本。アイコン行は両セルの `py` で空けた上部の帯に絶対配置し、テキストと重ねない。
   - **単語テキストは省略しない**（ellipsis・1 行制限は禁止、折り返しで全文表示）。768px 以下はアイコン 3 個を「…」メニューに集約する。
   - `review` の単語はカード枠をオレンジ（`--color-primary`）で強調。
-- **状態の hoisting**：葉コンポーネント（WordCard）は状態を持たず props で受け取り、テスト全体の状態は `BasicWordTest` に集約。
+- **状態の hoisting**：葉コンポーネント（WordCard）は状態を持たず props で受け取り、テスト全体の状態は `PublicWordbookTest` に集約。
 - **JudgeButtons の disabled 連動**：「答えを見る」まで正誤判定不可（UI 制約でチートを防止）。
 - Button / FloatingInput 等は **MUI ベースの薄い自作ラッパー**として `common/ui/` に置き、見た目は theme / sx で v1 に寄せる。
-- **復習タグはバックエンド保存**（#10）：`ReviewTagProvider`（wordbooks/layout.tsx と basicWord/layout.tsx に mount）が
+- **復習タグはバックエンド保存**（#10）：`ReviewTagProvider`（wordbooks/layout.tsx と publicWordbooks/layout.tsx に mount）が
   `taggedWords` クエリを 1 箇所で引き、付け外し（mutation → refetch）と件数バッジを配下ページへ配る。
   公式単語帳の単語もバックエンドがタグ付けに対応済み（`base_tagged_word_mutation.rb`）なので、
   自作・公式のどちらの復習タグも同じ復習単語一覧（`/wordbooks/review`）に載る。
   ホームのバッジ（DailyWord）は Provider の外なので同じクエリを直接引く（Apollo キャッシュ共有）。
-- **BE 未実装の機能はクライアント一時状態で先行再現**する：basicWord 配下の**章の進捗（パート解放）**は
-  `BasicWordSessionProvider`（layout に mount、リロードで初期化）で UI だけ v1 を再現している（進捗の永続化は別途）。
+- **BE 未実装の機能はクライアント一時状態で先行再現**する：publicWordbooks 配下の**章の進捗（パート解放）**は
+  `PublicWordbookSessionProvider`（layout に mount、リロードで初期化）で UI だけ v1 を再現している（進捗の永続化は別途）。
 
 ## 4. 主要画面とデータ
 
@@ -86,7 +86,7 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 `/wordbooks/review/test`（復習専用テスト）へ進む（自作単語帳の 一覧 → テスト と同じ導線。
 ホーム・単語帳一覧の復習バッジは一覧へ飛ぶ）。復習専用テストは復習タグ付き単語を出題し、
 記録は `kind: REVIEW`（単語帳なし）で保存する（通常のテストは `kind: WORDBOOK` + wordbookId）。
-`/basicWord/.../test`（BasicWordTest）は復習タグをバックエンド保存（`ReviewTagProvider`）に接続済みで、
+`/publicWordbooks/.../test`（PublicWordbookTest）は復習タグをバックエンド保存（`ReviewTagProvider`）に接続済みで、
 誤答の一括登録は自作単語帳と同じく復習単語一覧に反映される。完了時は学習記録も保存する
 （`kind: WORDBOOK` + 章の単語帳 ID を wordbookId に渡す。自作単語帳のテストと同じ方式）。
 章の完了（次 Part 解放）だけは保存 API がまだ無いためセッション一時状態で代替している（→ §3）。

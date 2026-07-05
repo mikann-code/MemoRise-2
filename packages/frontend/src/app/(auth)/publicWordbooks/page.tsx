@@ -11,12 +11,12 @@ import { WORDBOOK_LABELS } from "@/constants/wordbookLabels";
 
 type BookItem = { id: string; title: string; level?: string | null };
 
-/** 教材 1 冊の本カード（アイコン + タイトル + レベルのピル）。/basicWord/[id] へ。 */
+/** 教材 1 冊の本カード（アイコン + タイトル + レベルのピル）。/publicWordbooks/[id] へ。 */
 function BookCard({ item }: { item: BookItem }) {
   return (
     <Box
       component={NextLink}
-      href={`/basicWord/${item.id}`}
+      href={`/publicWordbooks/${item.id}`}
       sx={{
         flexShrink: 0,
         width: 120,
@@ -150,10 +150,10 @@ function LabelSection({
 /**
  * 公式単語帳の一覧（(auth) グループ・読み取り専用）。
  * ラベル（中学英語 / 英検 / TOEIC …）ごとにセクション分けし、各教材を本カードの横棚で並べる。
- * v1（memorize）の basicWordList の見た目を踏襲する。
+ * v1（memorize）の公式単語帳一覧の見た目を踏襲する。
  * 既知ラベルに入らない教材（未知ラベル / ラベル無し）は末尾の「未分類」に受け、一覧から消えないようにする。
  */
-export default function BasicWordListPage() {
+export default function PublicWordbooksPage() {
   const { data, loading, error } = usePublicWordbooksQuery();
   const wordbooks = data?.publicWordbooks ?? [];
 

@@ -19,7 +19,7 @@ v1（兄弟ディレクトリ `../MemoRise`）を Rails + GraphQL + Next.js で�
 
 ### フロントエンド `packages/frontend`（Next.js 16 + React 19 + MUI 7 + Apollo Client 4、port 3200）
 
-- `src/app/` — App Router。`(public)`（ログイン・新規登録）/ `(auth)`（要ログイン: wordbooks, basicWord 等）/ `(admin)`（管理者）
+- `src/app/` — App Router。`(public)`（ログイン・新規登録）/ `(auth)`（要ログイン: wordbooks, publicWordbooks 等）/ `(admin)`（管理者）
 - `src/components/common/` — 汎用部品（`card/WordCard` など）・`ui/`
 - `src/components/feature/` — Provider 類（AuthProvider / SnackbarProvider / *SessionProvider）
 - `src/components/layout/` — 共通シェル（Layout / Header / Footer / *Layout）

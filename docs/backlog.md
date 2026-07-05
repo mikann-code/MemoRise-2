@@ -11,7 +11,7 @@
 
 - **完了**：#1〜#10（基盤 / データモデル / GraphQL・フロント基盤 / 一般・管理者認証 / 公式単語帳の閲覧 / 自作単語帳・単語の CRUD / 単語テスト / 学習記録の保存と復習タグ）
   - #2 の補足：`admin_users` テーブルは作らず **`users.role` で管理者判定**にしている（別テーブル化は要決定）。sessions テーブル（DB セッション）を追加。
-  - #10 の補足：復習タグの保存は自作単語帳（wordbooks 配下）・公式単語帳（basicWord 配下）ともバックエンド接続済み
+  - #10 の補足：復習タグの保存は自作単語帳（wordbooks 配下）・公式単語帳（publicWordbooks 配下）ともバックエンド接続済み
     （公式単語帳の単語も `base_tagged_word_mutation.rb` がタグ付けを許可し、同じ復習単語一覧に載る）。ホームのバッジも接続済み。
     公式単語帳の章の進捗（`completeWordbookProgress`）と学習記録の保存だけはクライアント一時状態のままで、進捗は #13 で接続する。
 - **一部先行**：#14 のうち公式単語帳 CRUD の Mutation（`createAdminWordbook` 等）はバックエンドのみ実装済み（管理画面は未実装）
@@ -86,7 +86,7 @@ v1 スキーマ（8 テーブル）を Rails で再現する。
 **P1 / backend + frontend** ／ blocked by: #5
 - [ ] 公式単語帳の親一覧 → 子（章）→ 単語の取得（読み取り専用）
 - [ ] ラベル / レベル / パートの表示
-- [ ] `/basicWordList`・`/basicWord/[parentId]`・子の一覧/テスト導線
+- [ ] `/publicWordbooks`・`/publicWordbooks/[parentId]`・子の一覧/テスト導線
 
 ## #8 自作単語帳・単語の CRUD
 **P1 / backend + frontend** ／ blocked by: #5

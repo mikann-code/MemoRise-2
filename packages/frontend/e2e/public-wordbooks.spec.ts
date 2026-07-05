@@ -12,7 +12,7 @@ const WORDS = [
 
 async function mockGraphql(page: Page) {
   // 復習タグ（バックエンド保存）の状態と、AddTaggedWord の呼び出し履歴。
-  // basicWord 配下も ReviewTagProvider を mount するため TaggedWords / AddTaggedWord が飛ぶ。
+  // publicWordbooks 配下も ReviewTagProvider を mount するため TaggedWords / AddTaggedWord が飛ぶ。
   const taggedWords: { id: string; question: string; answer: string }[] = [];
   const addTaggedWordCalls: string[] = [];
   // テスト完了時の学習記録（CreateStudyRecord）の呼び出し履歴。
@@ -178,14 +178,14 @@ test("一覧→教材で Part と進捗が見え、章の単語一覧へ遷移�
 }) => {
   await mockGraphql(page);
 
-  await page.goto("/basicWordList");
+  await page.goto("/publicWordbooks");
   await expect(
     page.getByRole("heading", { name: "公式単語集" }),
   ).toBeVisible();
 
   // 本カード（教材）を開く
   await page.getByRole("link", { name: /TOEIC/ }).click();
-  await expect(page).toHaveURL(/\/basicWord\/1$/);
+  await expect(page).toHaveURL(/\/publicWordbooks\/1$/);
 
   // 教材トップ：Part と進捗が見える
   await expect(page.getByText("第1章")).toBeVisible();
@@ -196,7 +196,7 @@ test("一覧→教材で Part と進捗が見え、章の単語一覧へ遷移�
 
   // 章の単語一覧（list）へ
   await page.getByRole("link", { name: "第1章の単語一覧" }).click();
-  await expect(page).toHaveURL(/\/basicWord\/1\/10\/list$/);
+  await expect(page).toHaveURL(/\/publicWordbooks\/1\/10\/list$/);
   await expect(page.getByText("登録単語数：2")).toBeVisible();
   await expect(page.getByText("improve")).toBeVisible();
   await expect(page.getByText("reason")).toBeVisible();
@@ -207,7 +207,7 @@ test("単語テストを最後まで解くと結果画面が表示され、学�
 }) => {
   const { createStudyRecordCalls } = await mockGraphql(page);
 
-  await page.goto("/basicWord/1/10/test");
+  await page.goto("/publicWordbooks/1/10/test");
 
   await expect(
     page.getByRole("heading", { name: "単語テスト" }),
@@ -257,7 +257,7 @@ test("誤答は結果画面から復習リストへ一括登録できる（confi
 }) => {
   const { addTaggedWordCalls } = await mockGraphql(page);
 
-  await page.goto("/basicWord/1/10/test");
+  await page.goto("/publicWordbooks/1/10/test");
   await expect(page.getByRole("heading", { name: "単語テスト" })).toBeVisible();
 
   // 2 問とも不正解にする（誤答時点では復習タグは自動登録されない）
@@ -350,7 +350,7 @@ test("未知ラベルの公式単語帳は「未分類」に出て一覧から�
     });
   });
 
-  await page.goto("/basicWordList");
+  await page.goto("/publicWordbooks");
   await expect(page.getByRole("heading", { name: "未分類" })).toBeVisible();
   await expect(
     page.getByRole("link", { name: /謎の単語帳/ }),
