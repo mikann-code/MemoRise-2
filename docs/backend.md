@@ -64,9 +64,11 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 | uuid | string | unique |
 | question | string | not null |
 | answer | string | not null |
-| review | boolean | default false |
 | wordbook_id | bigint | counter_cache |
 | user_id | bigint | 整合性チェック用 |
+
+- v1 にあった `review` boolean は持たない。復習状態は `user_word_tags`（tag: "review"）で
+  ユーザーごと・単語帳横断に表現する（§ user_word_tags）。
 
 - カスタムバリデーション `user_consistency`：公式単語帳に user_id 付き単語は不可、自作単語帳に user_id なし単語は不可。
 
@@ -112,9 +114,14 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 
 **実装状況**（`schema.graphql` が正）：
 
-- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)`
-- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`
-- 未実装：`todayWord` / `totalWords` / `taggedWords` / `studyRecords` 系 / `wordbookProgresses`、`updateProfile` / `studyWordbook` / `addTaggedWord` / `removeTaggedWord` / `createStudyRecord` / `completeWordbookProgress`、`adminUsers` / `adminStats` / 管理者の単語 CRUD / `importCsv`
+- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `taggedWords`
+- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `createStudyRecord`
+  - `createStudyRecord` は「日次サマリーの増分更新 + 詳細追加 + streak 更新」を 1 トランザクションで行う（§3）。
+    学習日はサーバー日付（JST）。同一テストの二重送信防止はフロントの `hasPostedRef` が担う（[frontend.md](./frontend.md) §5）。
+    記録の種類は GraphQL enum `StudyRecordKind`（`WORDBOOK` = 単語帳のテスト・wordbookId 必須 /
+    `REVIEW` = 復習専用テスト・wordbookId 不可）で明示し、組み合わせ不正は errors で返す（消去法で復習扱いにしない）。
+  - `addTaggedWord` / `removeTaggedWord` の対象は「本人の単語 or 公式単語帳の単語」（論理削除済み単語帳を除く）。
+- 未実装：`todayWord` / `totalWords` / `studyRecords` 系 / `wordbookProgresses`、`updateProfile` / `studyWordbook` / `completeWordbookProgress`、`adminUsers` / `adminStats` / 管理者の単語 CRUD / `importCsv`
   （テーブル自体は §2 のとおり作成済み。フロントは未実装分をクライアント一時状態でフォールバック中 → [frontend.md](./frontend.md) §3）
 
 **Mutation の返却規約**：例外を投げず `{ success, errors: [{ field, message }] }` 形式の Payload を返す。
