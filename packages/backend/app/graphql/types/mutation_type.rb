@@ -32,6 +32,16 @@ module Types
     field :delete_word, mutation: Mutations::DeleteWord,
       description: "単語の削除（本人のみ・物理削除）"
 
+    # 復習タグ（一般ユーザー専用）。閲覧は Query 側の taggedWords。
+    field :add_tagged_word, mutation: Mutations::AddTaggedWord,
+      description: "単語へ復習タグを付ける（本人の単語・公式の単語。冪等）"
+    field :remove_tagged_word, mutation: Mutations::RemoveTaggedWord,
+      description: "単語の復習タグを外す（本人のタグのみ・冪等）"
+
+    # 学習記録（一般ユーザー専用）。
+    field :create_study_record, mutation: Mutations::CreateStudyRecord,
+      description: "テスト終了時の学習記録の保存（日次サマリー累積 + 詳細追加 + streak 更新を 1 トランザクションで）"
+
     # 動作確認用プレースホルダ（疎通テストで使用）。
     field :noop, Boolean, null: false, description: "プレースホルダ"
 

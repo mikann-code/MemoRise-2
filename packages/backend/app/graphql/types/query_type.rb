@@ -19,6 +19,10 @@ module Types
     field :my_wordbook, resolver: Resolvers::MyWordbook,
       description: "自作単語帳 1 件（単語まで。本人以外・公式・論理削除済みは null）"
 
+    # 復習タグの閲覧（本人のみ・要ログイン）。current_user スコープで他人のタグを除外する。
+    field :tagged_words, resolver: Resolvers::TaggedWords,
+      description: "復習タグ付きの単語一覧（本人のみ・タグ付けの新しい順・要ログイン）"
+
     # 動作確認用フィールド。
     field :health, String, null: false, description: "API 稼働確認用"
 

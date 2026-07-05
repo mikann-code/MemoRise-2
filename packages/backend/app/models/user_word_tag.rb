@@ -1,4 +1,8 @@
 class UserWordTag < ApplicationRecord
+  # 復習タグの値。テストの誤答時の自動登録・手動のタグ付けはすべてこの値で扱う
+  # （tag カラム自体は将来の別タグ用に汎用のまま残す）。
+  REVIEW = "review".freeze
+
   belongs_to :user
   belongs_to :word
 
