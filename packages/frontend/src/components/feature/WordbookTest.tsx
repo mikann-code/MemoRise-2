@@ -6,13 +6,14 @@ import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRen
 import { SectionTitle, Button, JudgeButtons } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
+import { useSnackbar } from "@/components/feature/SnackbarProvider";
 import { useCreateStudyRecordMutation } from "@/graphql/mutations/createStudyRecord";
 import { StudyRecordKind } from "@/gql/graphql";
 
 type Word = { id: string; question: string; answer: string };
 
 type Props = {
-  /** 復習専用テスト（/wordbooks/review）では未指定。記録は単語帳なしで保存し、終了後は単語帳一覧へ戻る。 */
+  /** 復習専用テスト（/wordbooks/review/test）では未指定。記録は単語帳なしで保存し、終了後は復習単語一覧へ戻る。 */
   wordbookId?: string;
   /** シャッフル済みの出題順（ページ側で startTransition を使って並べ替える）。 */
   words: Word[];
@@ -66,19 +67,21 @@ function ProgressInfo({ current, total, rate }: { current: number; total: number
 /**
  * 自作単語帳の単語テスト本体（v1 の TestBody を踏襲。公式単語帳の BasicWordTest と同じ見た目）。
  * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。
- * 不正解は addTaggedWord を await してから次へ進め、確実に復習タグへ登録する（docs/frontend.md §5）。
+ * 誤答の復習タグは自動登録せず、結果画面の「間違えた単語を復習リストに登録」（confirm あり）で
+ * まとめて登録する（docs/frontend.md §5）。
  * 完了で結果画面（正答率・間違えた単語一覧）を表示し、学習記録を 1 回だけ保存する
  * （hasPostedRef で Strict Mode の二重実行・二重送信を防止）。
- * wordbookId なしは復習専用テスト（記録は単語帳なし・戻り先は単語帳一覧）。
+ * wordbookId なしは復習専用テスト（記録は単語帳なし・戻り先は復習単語一覧）。
  */
 export default function WordbookTest({ wordbookId, words }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [opened, setOpened] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongWords, setWrongWords] = useState<Word[]>([]);
-  // 誤答のタグ登録（await）中の連打で二重判定・二重進行しないようにする。
-  const [judging, setJudging] = useState(false);
-  const { isTagged, addTag, toggleTag } = useReviewTags();
+  // 一括登録（mutation → refetch）中の連打で二重送信しないようにする。
+  const [registering, setRegistering] = useState(false);
+  const { isTagged, addTags, toggleTag } = useReviewTags();
+  const { confirm, notify } = useSnackbar();
   const [createStudyRecord] = useCreateStudyRecordMutation();
   const hasPostedRef = useRef(false);
 
@@ -121,18 +124,32 @@ export default function WordbookTest({ wordbookId, words }: Props) {
     goNext();
   };
 
-  const handleWrong = async () => {
-    if (judging) return;
-    setJudging(true);
+  const handleWrong = () => {
+    setWrongWords((prev) => [...prev, currentWord]);
+    goNext();
+  };
+
+  // 結果画面の一括登録対象（既にタグ済みの単語は除く。全て登録済みならボタンごと消える）。
+  const untaggedWrongWords = wrongWords.filter((w) => !isTagged(w.id));
+
+  const handleRegisterWrongWords = async () => {
+    if (registering) return;
+    const targets = untaggedWrongWords;
+    if (
+      !(await confirm(
+        `間違えた単語 ${targets.length} 件を復習リストに登録しますか？`,
+      ))
+    ) {
+      return;
+    }
+    setRegistering(true);
     try {
-      if (currentWord && !isTagged(currentWord.id)) {
-        // タグ登録に失敗してもテストは続行する（結果画面のタグアイコンから付け直せる）。
-        await addTag(currentWord.id).catch(() => {});
-      }
-      setWrongWords((prev) => [...prev, currentWord]);
-      goNext();
+      await addTags(targets.map((w) => w.id));
+      notify("復習リストに登録しました");
+    } catch {
+      notify("復習リストへの登録に失敗しました");
     } finally {
-      setJudging(false);
+      setRegistering(false);
     }
   };
 
@@ -165,9 +182,20 @@ export default function WordbookTest({ wordbookId, words }: Props) {
             ))}
           </Box>
 
-          <Box sx={{ mt: 2.5 }}>
+          <Box
+            sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: "12px" }}
+          >
+            {untaggedWrongWords.length > 0 && (
+              <Button onClick={handleRegisterWrongWords} disabled={registering}>
+                間違えた単語を復習リストに登録
+              </Button>
+            )}
             <Button
-              href={wordbookId ? `/wordbooks/${wordbookId}/list` : "/wordbooks"}
+              href={
+                wordbookId
+                  ? `/wordbooks/${wordbookId}/list`
+                  : "/wordbooks/review"
+              }
             >
               一覧に戻る
             </Button>
@@ -216,7 +244,7 @@ export default function WordbookTest({ wordbookId, words }: Props) {
           <JudgeButtons
             onCorrect={handleCorrect}
             onWrong={handleWrong}
-            disabled={!opened || judging}
+            disabled={!opened}
           />
         </Box>
       </Box>

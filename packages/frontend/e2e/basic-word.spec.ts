@@ -11,9 +11,67 @@ const WORDS = [
 ];
 
 async function mockGraphql(page: Page) {
+  // 復習タグ（バックエンド保存）の状態と、AddTaggedWord の呼び出し履歴。
+  // basicWord 配下も ReviewTagProvider を mount するため TaggedWords / AddTaggedWord が飛ぶ。
+  const taggedWords: { id: string; question: string; answer: string }[] = [];
+  const addTaggedWordCalls: string[] = [];
+  // テスト完了時の学習記録（CreateStudyRecord）の呼び出し履歴。
+  const createStudyRecordCalls: Record<string, string | number | null>[] = [];
+
   await page.route("**/graphql", async (route) => {
-    const body = route.request().postDataJSON() as { operationName?: string };
+    const body = route.request().postDataJSON() as {
+      operationName?: string;
+      variables?: Record<string, string | number | null>;
+    };
     const op = body?.operationName;
+    const vars = body?.variables ?? {};
+
+    const json = (data: unknown) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data }),
+      });
+
+    if (op === "TaggedWords") {
+      await json({
+        taggedWords: taggedWords.map((w) => ({ ...w, __typename: "Word" })),
+      });
+      return;
+    }
+
+    if (op === "AddTaggedWord") {
+      addTaggedWordCalls.push(String(vars.wordId));
+      const word = WORDS.find((w) => w.id === String(vars.wordId));
+      if (word && !taggedWords.some((w) => w.id === word.id)) {
+        taggedWords.unshift({
+          id: word.id,
+          question: word.question,
+          answer: word.answer,
+        });
+      }
+      await json({
+        addTaggedWord: {
+          success: true,
+          errors: [],
+          word: word ?? null,
+          __typename: "AddTaggedWordPayload",
+        },
+      });
+      return;
+    }
+
+    if (op === "CreateStudyRecord") {
+      createStudyRecordCalls.push(vars);
+      await json({
+        createStudyRecord: {
+          success: true,
+          errors: [],
+          studyRecord: null,
+          __typename: "CreateStudyRecordPayload",
+        },
+      });
+      return;
+    }
 
     if (op === "Me") {
       await route.fulfill({
@@ -109,11 +167,10 @@ async function mockGraphql(page: Page) {
       return;
     }
 
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ data: { me: null } }),
-    });
+    await json({ me: null });
   });
+
+  return { taggedWords, addTaggedWordCalls, createStudyRecordCalls };
 }
 
 test("一覧→教材で Part と進捗が見え、章の単語一覧へ遷移できる（代表導線）", async ({
@@ -145,8 +202,10 @@ test("一覧→教材で Part と進捗が見え、章の単語一覧へ遷移�
   await expect(page.getByText("reason")).toBeVisible();
 });
 
-test("単語テストを最後まで解くと結果画面が表示される", async ({ page }) => {
-  await mockGraphql(page);
+test("単語テストを最後まで解くと結果画面が表示され、学習記録が保存される", async ({
+  page,
+}) => {
+  const { createStudyRecordCalls } = await mockGraphql(page);
 
   await page.goto("/basicWord/1/10/test");
 
@@ -177,6 +236,67 @@ test("単語テストを最後まで解くと結果画面が表示される", as
   await expect(
     page.getByRole("link", { name: "一覧に戻る" }),
   ).toBeVisible();
+
+  // 公式単語テストの完了で学習記録が 1 回だけ保存される
+  // （kind = WORDBOOK・章の単語帳 ID を wordbookId に渡す）。
+  await expect
+    .poll(() => createStudyRecordCalls.length, {
+      message: "CreateStudyRecord の呼び出し回数",
+    })
+    .toBe(1);
+  expect(createStudyRecordCalls[0]).toMatchObject({
+    kind: "WORDBOOK",
+    totalCount: 2,
+    correctCount: 2,
+    wordbookId: "10",
+  });
+});
+
+test("誤答は結果画面から復習リストへ一括登録できる（confirm あり・バックエンド保存）", async ({
+  page,
+}) => {
+  const { addTaggedWordCalls } = await mockGraphql(page);
+
+  await page.goto("/basicWord/1/10/test");
+  await expect(page.getByRole("heading", { name: "単語テスト" })).toBeVisible();
+
+  // 2 問とも不正解にする（誤答時点では復習タグは自動登録されない）
+  for (let i = 0; i < 2; i++) {
+    await page.getByRole("button", { name: "答えを見る" }).click();
+    await page.getByRole("button", { name: "不正解", exact: true }).click();
+  }
+  await expect(page.getByRole("heading", { name: "テスト結果" })).toBeVisible();
+
+  // キャンセルでは登録されず、ボタンも残る
+  const registerButton = page.getByRole("button", {
+    name: "間違えた単語を復習リストに登録",
+  });
+  await registerButton.click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(
+    dialog.getByText("間違えた単語 2 件を復習リストに登録しますか？"),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "キャンセル" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(registerButton).toBeVisible();
+  expect(addTaggedWordCalls).toHaveLength(0);
+
+  // OK で登録。公式単語帳の単語もバックエンド（AddTaggedWord）へ届く。
+  // 登録済みになるとボタンごと消え、通知が出る
+  await registerButton.click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "OK" })
+    .click();
+  await expect(page.getByText("復習リストに登録しました")).toBeVisible();
+  await expect(registerButton).not.toBeVisible();
+
+  // 公式単語帳の 2 単語がバックエンドの復習タグへ登録された（id は WORDS のもの）
+  await expect
+    .poll(() => [...addTaggedWordCalls].sort(), {
+      message: "AddTaggedWord の呼び出し",
+    })
+    .toEqual(["100", "101"]);
 });
 
 test("未知ラベルの公式単語帳は「未分類」に出て一覧から消えない", async ({

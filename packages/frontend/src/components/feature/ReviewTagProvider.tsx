@@ -24,8 +24,8 @@ type ReviewTags = {
   /** 初回取得中（復習専用テストのローディング表示に使う）。 */
   loading: boolean;
   isTagged: (wordId: string) => boolean;
-  /** タグを付ける（誤答時の自動登録用）。タグ済みならサーバー側が吸収する（冪等）。 */
-  addTag: (wordId: string) => Promise<void>;
+  /** タグをまとめて付ける（結果画面の「間違えた単語を復習リストに登録」用）。タグ済みはサーバー側が吸収する（冪等）。 */
+  addTags: (wordIds: readonly string[]) => Promise<void>;
   /** タグの付け外し（カードのタグアイコン用）。 */
   toggleTag: (wordId: string) => Promise<void>;
 };
@@ -51,9 +51,11 @@ export function ReviewTagProvider({ children }: { children: ReactNode }) {
     [taggedIds],
   );
 
-  const addTag = useCallback(
-    async (wordId: string) => {
-      await addTaggedWord({ variables: { wordId } });
+  const addTags = useCallback(
+    async (wordIds: readonly string[]) => {
+      await Promise.all(
+        wordIds.map((wordId) => addTaggedWord({ variables: { wordId } })),
+      );
       await refetch();
     },
     [addTaggedWord, refetch],
@@ -72,8 +74,8 @@ export function ReviewTagProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ taggedWords, loading, isTagged, addTag, toggleTag }),
-    [taggedWords, loading, isTagged, addTag, toggleTag],
+    () => ({ taggedWords, loading, isTagged, addTags, toggleTag }),
+    [taggedWords, loading, isTagged, addTags, toggleTag],
   );
 
   return (
