@@ -42,6 +42,14 @@ module Types
     field :create_study_record, mutation: Mutations::CreateStudyRecord,
       description: "テスト終了時の学習記録の保存（日次サマリー累積 + 詳細追加 + streak 更新を 1 トランザクションで）"
 
+    # プロフィール編集（一般ユーザー専用）。名前は必須・パスワードは任意。
+    field :update_profile, mutation: Mutations::UpdateProfile,
+      description: "プロフィール編集（本人のみ。名前は必須・パスワードは変更時のみ）"
+
+    # 公式単語帳の章の解放（一般ユーザー専用）。完了と次章の解放を同一トランザクションで。
+    field :complete_wordbook_progress, mutation: Mutations::CompleteWordbookProgress,
+      description: "公式単語帳の章を完了し次章を解放（本人のみ・完了と解放を同一トランザクション）"
+
     # 動作確認用プレースホルダ（疎通テストで使用）。
     field :noop, Boolean, null: false, description: "プレースホルダ"
 
