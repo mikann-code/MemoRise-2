@@ -8,13 +8,14 @@ import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import { SectionTitle, LoadingSpinner, Button } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { usePublicWordbookChaptersQuery } from "@/graphql/queries/publicWordbookChapters";
-import { useBasicWordSession } from "@/components/feature/BasicWordSessionProvider";
+import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
 
 /**
  * 章（Part）の単語一覧（(auth)・読み取り専用）。全単語を答え開いた状態のカードで並べる。
  * v1（memorize）の basicWord/[parentId]/[childrenId]/list を踏襲。
- * 公式クエリは親しか返さないため親を引いて childrenId の章を取り出す。復習タグは一時状態（保存なし）。
+ * 公式クエリは親しか返さないため親を引いて childrenId の章を取り出す。
+ * 復習タグはバックエンド保存（ReviewTagProvider）で自作単語帳の一覧と共通の挙動。
  */
 export default function BasicWordListChapterPage() {
   const { parentId, childrenId } = useParams<{
@@ -24,7 +25,7 @@ export default function BasicWordListChapterPage() {
   const { data, loading, error } = usePublicWordbookChaptersQuery({
     variables: { id: parentId },
   });
-  const { isTagged, toggleTag } = useBasicWordSession();
+  const { isTagged, toggleTag } = useReviewTags();
   const { confirm } = useSnackbar();
 
   const chapter =
@@ -63,15 +64,15 @@ export default function BasicWordListChapterPage() {
 
   const words = chapter.words;
 
-  // 復習タグの外し操作だけ確認する（v1 踏襲）。付ける操作はそのまま。
+  // 復習タグは付け外しの両方向とも確認する（自作単語帳の一覧と同じ。付ける側は
+  // mutation → refetch の反映待ちで一瞬未登録に見えるため、confirm で操作の成立を明示する）。
   const handleTagToggle = async (wordId: string) => {
-    if (
-      isTagged(wordId) &&
-      !(await confirm("この単語を復習リストから外しますか？"))
-    ) {
-      return;
-    }
-    toggleTag(wordId);
+    const message = isTagged(wordId)
+      ? "この単語を復習リストの登録から外しますか？"
+      : "この単語を復習リストに登録しますか？";
+    if (!(await confirm(message))) return;
+    // 失敗時は表示が変わらないだけなので握りつぶす（再操作できる）。
+    await toggleTag(wordId).catch(() => {});
   };
 
   return (

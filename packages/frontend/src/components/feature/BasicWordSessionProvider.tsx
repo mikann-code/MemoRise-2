@@ -10,9 +10,10 @@ import {
 import type { ReactNode } from "react";
 
 /**
- * 公式単語帳の学習セッション状態（クライアント一時状態・非永続）。
- * #2 バックエンドには「パート解放/進捗」「復習リスト」の保存 API がまだ無いため、
- * v1 の UI 挙動（テスト完了で次の Part を解放・復習タグの点灯）を basicWord 配下だけで再現する。
+ * 公式単語帳の「パート解放/進捗」状態（クライアント一時状態・非永続）。
+ * 復習タグはバックエンド保存（ReviewTagProvider）に移したため、ここは進捗解放だけを持つ。
+ * #2 バックエンドには「パート解放/進捗」の保存 API がまだ無いため、
+ * v1 の UI 挙動（テスト完了で次の Part を解放）を basicWord 配下だけで再現する。
  * この Provider は basicWord/layout.tsx に置くので、親↔一覧↔テストのページ遷移では状態が保たれ、
  * ブラウザをリロードすると初期化される（＝保存はしない）。
  */
@@ -20,10 +21,6 @@ type BasicWordSession = {
   /** テストを完了した章（children）の id 集合。次の Part の解放判定に使う。 */
   completedIds: ReadonlySet<string>;
   markCompleted: (chapterId: string) => void;
-  /** 復習タグを付けた単語の id 集合。 */
-  taggedIds: ReadonlySet<string>;
-  toggleTag: (wordId: string) => void;
-  isTagged: (wordId: string) => boolean;
 };
 
 const BasicWordSessionContext = createContext<BasicWordSession | null>(null);
@@ -36,9 +33,6 @@ export function BasicWordSessionProvider({
   const [completedIds, setCompletedIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const [taggedIds, setTaggedIds] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
 
   const markCompleted = useCallback((chapterId: string) => {
     setCompletedIds((prev) => {
@@ -49,23 +43,9 @@ export function BasicWordSessionProvider({
     });
   }, []);
 
-  const toggleTag = useCallback((wordId: string) => {
-    setTaggedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(wordId)) next.delete(wordId);
-      else next.add(wordId);
-      return next;
-    });
-  }, []);
-
-  const isTagged = useCallback(
-    (wordId: string) => taggedIds.has(wordId),
-    [taggedIds],
-  );
-
   const value = useMemo(
-    () => ({ completedIds, markCompleted, taggedIds, toggleTag, isTagged }),
-    [completedIds, markCompleted, taggedIds, toggleTag, isTagged],
+    () => ({ completedIds, markCompleted }),
+    [completedIds, markCompleted],
   );
 
   return (

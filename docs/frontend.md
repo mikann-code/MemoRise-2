@@ -11,10 +11,10 @@ App Router の Route Group `(xxx)` で、URL に出さずに権限ごとに空�
 | グループ | 認証 | 画面（実装済み） |
 | --- | --- | --- |
 | `(public)` | 不要 | `/login`、`/signup` |
-| `(auth)` | 必須 | `/`（ホーム）、`/basicWordList`、`/basicWord/[parentId]`、`/basicWord/[parentId]/[childrenId]/list`、`/basicWord/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`（復習専用テスト） |
+| `(auth)` | 必須 | `/`（ホーム）、`/basicWordList`、`/basicWord/[parentId]`、`/basicWord/[parentId]/[childrenId]/list`、`/basicWord/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`（復習単語一覧）、`/wordbooks/review/test`（復習専用テスト）、`/study-records`（学習記録） |
 | `(admin)` | 管理者 | `/admin-login`、`/admin` |
 
-未実装（今後追加予定）：`/study-records`、`/my-page`、`/my-page/edit`、`/admin/users`、`/admin/wordbooks` 配下。
+未実装（今後追加予定）：`/my-page`、`/my-page/edit`、`/admin/users`、`/admin/wordbooks` 配下。
 
 - 親子単語帳は `/[parentId]/[childrenId]` の二段ルーティングで「TOEIC > Day 1」のような体系を表現。
 - `(auth)` は `AuthProvider`（`me` クエリ）でガードし、未認証は `/login` へリダイレクト。`(admin)` は `AdminAuthProvider`（`adminMe`）で同様にガードする。
@@ -37,9 +37,9 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | 階層 | 役割 | 現状の中身 |
 | --- | --- | --- |
 | `common/ui/` | 汎用パーツ | Button / ButtonSecondary / FloatingInput / JudgeButtons / LoadingSpinner / SectionTitle |
-| `common/card/` | カード | WordCard / ErrorCard |
+| `common/card/` | カード | WordCard / ErrorCard / DailyRecordCard（学習記録 1 日分） |
 | `layout/` | レイアウト | Layout（共通シェル）/ Header / Footer / FormLayout / WordbookListLayout |
-| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / BasicWordSessionProvider / ReviewTagProvider / BasicWordTest / WordbookTest |
+| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / BasicWordSessionProvider / ReviewTagProvider / BasicWordTest / WordbookTest / StudyCalendar（学習カレンダー） |
 | `home/` | トップ専用 | DailyWord / BasicWord / CraftWord / WeeklyStreakCard |
 
 設計指針：
@@ -51,11 +51,13 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 - **状態の hoisting**：葉コンポーネント（WordCard）は状態を持たず props で受け取り、テスト全体の状態は `BasicWordTest` に集約。
 - **JudgeButtons の disabled 連動**：「答えを見る」まで正誤判定不可（UI 制約でチートを防止）。
 - Button / FloatingInput 等は **MUI ベースの薄い自作ラッパー**として `common/ui/` に置き、見た目は theme / sx で v1 に寄せる。
-- **復習タグはバックエンド保存**（#10）：`ReviewTagProvider`（wordbooks/layout.tsx に mount）が
+- **復習タグはバックエンド保存**（#10）：`ReviewTagProvider`（wordbooks/layout.tsx と basicWord/layout.tsx に mount）が
   `taggedWords` クエリを 1 箇所で引き、付け外し（mutation → refetch）と件数バッジを配下ページへ配る。
+  公式単語帳の単語もバックエンドがタグ付けに対応済み（`base_tagged_word_mutation.rb`）なので、
+  自作・公式のどちらの復習タグも同じ復習単語一覧（`/wordbooks/review`）に載る。
   ホームのバッジ（DailyWord）は Provider の外なので同じクエリを直接引く（Apollo キャッシュ共有）。
-- **BE 未実装の機能はクライアント一時状態で先行再現**する：basicWord 配下の復習タグ・章の進捗は
-  `BasicWordSessionProvider`（layout に mount、リロードで初期化）で UI だけ v1 を再現している（#13 で接続予定）。
+- **BE 未実装の機能はクライアント一時状態で先行再現**する：basicWord 配下の**章の進捗（パート解放）**は
+  `BasicWordSessionProvider`（layout に mount、リロードで初期化）で UI だけ v1 を再現している（進捗の永続化は別途）。
 
 ## 4. 主要画面とデータ
 
@@ -64,7 +66,7 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | ホーム `/` | 今日の一問 / 公式単語 / 自作導線 / 週 streak の 4 セクション合成 | todayWord, publicWordbooks, taggedWords（バッジ）, studyRecordsWeek |
 | 公式単語帳 | 親一覧 → 子（章）→ 単語一覧 / テスト | publicWordbooks, publicWordbook.children, publicWordbook.words |
 | 自作単語帳 | 一覧 / 作成 / 編集 / 単語一覧 / テスト / 復習 | wordbooks, words, taggedWords |
-| 学習記録 `/study-records` | カレンダー表示 | studyRecords(year, month) |
+| 学習記録 `/study-records` | streak + 週ストリーク（月曜始まり）/ カレンダー（月送り・日別詳細）/ 直近一覧のタブ | me（streak）, studyRecords(year, month), studyRecordsWeek, studyRecordsRecent |
 | マイページ `/my-page` | streak / 登録単語数 / プロフィール編集 | me, totalWords |
 | 管理 `/admin/*` | 公式単語帳 CRUD / CSV / ユーザー一覧 / 統計 | adminWordbooks, adminUsers, adminStats |
 
@@ -74,15 +76,20 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 ## 5. テスト機能のフロー（v1 のロジックを維持）
 
 1. `useWords`（v2: GraphQL クエリ）の結果をシャッフルしてから `Test` に渡す。シャッフルは `startTransition` で低優先度化し UI をブロックしない。
-2. 「答えを見る」→ 正誤判定。誤答時は `addTaggedWord` を `await`（v2: `mutateAsync` 相当の Apollo mutation の await）してから次へ進め、確実にタグ登録。
+2. 「答えを見る」→ 正誤判定。誤答時の復習タグは自動登録しない。結果画面の「間違えた単語を復習リストに登録」（`useSnackbar().confirm` で確認）で未登録の誤答単語をまとめて `addTaggedWord` する（登録済みになるとボタンは消える）。単語一覧のタグアイコンも付け外し両方向で confirm を挟む（mutation → refetch の反映待ちで未登録に見える誤解を防ぐ）。
 3. テスト終了（`currentIndex >= total`）を `useEffect` で検知し、`createStudyRecord`（履歴）と `completeWordbookProgress`（進捗）を発火。
 4. **冪等性**：`hasPostedRef = useRef(false)` で Strict Mode の二重実行・二重送信を防止。
 
 実装状況：`/wordbooks/[id]/test`（WordbookTest）は #10 で 2〜4 を接続済み
 （`completeWordbookProgress` は章の解放が対象のため自作単語帳では発火しない）。
-`/wordbooks/review`（復習専用テスト）は復習タグ付き単語を出題し、記録は `kind: REVIEW`（単語帳なし）で保存する
-（通常のテストは `kind: WORDBOOK` + wordbookId）。
-`/basicWord/.../test`（BasicWordTest）は保存 API 未接続のままセッション一時状態で代替している（→ §3、#13 で対応）。
+`/wordbooks/review`（復習単語一覧）はタグ付き単語（単語帳横断）を並べ、「今すぐはじめる」で
+`/wordbooks/review/test`（復習専用テスト）へ進む（自作単語帳の 一覧 → テスト と同じ導線。
+ホーム・単語帳一覧の復習バッジは一覧へ飛ぶ）。復習専用テストは復習タグ付き単語を出題し、
+記録は `kind: REVIEW`（単語帳なし）で保存する（通常のテストは `kind: WORDBOOK` + wordbookId）。
+`/basicWord/.../test`（BasicWordTest）は復習タグをバックエンド保存（`ReviewTagProvider`）に接続済みで、
+誤答の一括登録は自作単語帳と同じく復習単語一覧に反映される。完了時は学習記録も保存する
+（`kind: WORDBOOK` + 章の単語帳 ID を wordbookId に渡す。自作単語帳のテストと同じ方式）。
+章の完了（次 Part 解放）だけは保存 API がまだ無いためセッション一時状態で代替している（→ §3）。
 
 ## 6. 認証・通信（v1 → v2）
 
@@ -102,11 +109,13 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | Mutation 後 | invalidateQueries で再取得 | `refetchQueries` / キャッシュ更新 |
 
 - ログアウト時はキャッシュをクリア（v1 `removeQueries(["me"])` → v2 `client.clearStore()`）。
+- 記録系クエリ（`studyRecords` / `studyRecordsWeek` / `studyRecordsRecent`）は `cache-first` のため、
+  `createStudyRecord` の `update` で該当フィールドを `cache.evict` し、保存後の次回表示時に再取得させる。
 
 ## 8. その他の UI / UX 指針（踏襲）
 
 - 未ログイン・通信失敗時のフォールバック（リッチな空状態、「ログイン / 新規登録」への導線）。
-- **window.confirm / window.alert は使わない**。`components/feature/SnackbarProvider` の `useSnackbar()` を使う：`confirm(message)` は画面全体を暗転させ中央にカード型ダイアログ（キャンセル / OK は flex 均等幅）を出して `Promise<boolean>` を返す。`notify(message)` は Footer の上に一定時間表示して自動で消える。`app/providers.tsx` でアプリ全体に mount 済み。
+- **window.confirm / window.alert は使わない**。`components/feature/SnackbarProvider` の `useSnackbar()` を使う：`confirm(message)` は画面全体を暗転させ中央にカード型ダイアログ（キャンセル / OK は flex 均等幅）を出して `Promise<boolean>` を返す。`notify(message)` は confirm と同じ画面中央に一定時間表示して自動で消える（暗転しない非モーダル通知）。`app/providers.tsx` でアプリ全体に mount 済み。
 - 週初めを月曜に補正：`(jsDay - 1 + 7) % 7`。
 - メタデータ（title / description）と多言語フォント（Noto Sans JP 等）を `RootLayout` で設定。
 - 入力欄は `autoComplete="off"` をデフォルトに（テスト中の意図しない補完を防止）。

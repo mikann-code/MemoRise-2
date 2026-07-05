@@ -1,74 +1,32 @@
 "use client";
 
-import { startTransition, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
-import { SectionTitle, LoadingSpinner } from "@/components/common/ui";
-import { ErrorCard } from "@/components/common/card";
+import { WordbookListLayout } from "@/components/layout";
+import { SectionTitle, Button, LoadingSpinner } from "@/components/common/ui";
+import { WordCard, ErrorCard } from "@/components/common/card";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
-import WordbookTest from "@/components/feature/WordbookTest";
-
-type Word = { id: string; question: string; answer: string };
-
-/** Fisher–Yates で出題順をシャッフルする（元配列は変えない）。 */
-function shuffle(words: readonly Word[]): Word[] {
-  const copy = [...words];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
+import { useSnackbar } from "@/components/feature/SnackbarProvider";
 
 /**
- * 復習専用テスト（要件 3.5）。復習タグ付き単語（単語帳横断）だけを出題する。
- * 出題はテスト開始時のスナップショットで固定し、テスト中のタグ操作（refetch）で
- * 出題順・出題数が変わらないようにする。記録は単語帳なし（wordbookId 未指定）で保存される。
- * v1 の /wordbooks/review は一覧表示のみだったが、v2 では要件どおりテストに拡張した。
+ * 復習単語一覧（v1 の /wordbooks/review の一覧表示を再現）。
+ * ホーム・単語帳一覧の復習バッジはここへ飛び、「今すぐはじめる」で
+ * 復習専用テスト（/wordbooks/review/test）へ進む（自作単語帳の 一覧 → テスト と同じ導線）。
+ * カードのタグアイコンは登録解除（confirm あり）。外すと一覧からも消える。
  */
-export default function ReviewTestPage() {
-  const { taggedWords, loading } = useReviewTags();
+export default function ReviewListPage() {
+  const { taggedWords, loading, toggleTag } = useReviewTags();
+  const { confirm } = useSnackbar();
 
-  const [shuffledWords, setShuffledWords] = useState<Word[]>([]);
+  // 一覧に並ぶのは全てタグ付き単語なので、トグル = 登録解除（v1 踏襲で confirm を挟む）。
+  const handleTagToggle = async (wordId: string) => {
+    if (!(await confirm("この単語を復習リストの登録から外しますか？"))) return;
+    // 失敗時は表示が変わらないだけなので握りつぶす（再操作できる）。
+    await toggleTag(wordId).catch(() => {});
+  };
 
-  useEffect(() => {
-    // 開始後（1 回シャッフルした後）は並べ替えない。誤答・タグ操作の refetch に影響されない。
-    if (shuffledWords.length > 0) return;
-    if (taggedWords.length === 0) return;
-    startTransition(() => {
-      setShuffledWords(shuffle(taggedWords));
-    });
-  }, [taggedWords, shuffledWords.length]);
-
-  // テスト開始前だけ空状態・ローディングを判定する。開始後（シャッフル済み）は
-  // 結果画面でタグを外して 0 件になっても、テスト・結果画面を出したままにする。
-  if (shuffledWords.length === 0) {
-    if (taggedWords.length === 0 && !loading) {
-      return (
-        <Box>
-          <SectionTitle
-            icon={<SellOutlinedIcon />}
-            subTitle="Review Test"
-            title="復習テスト"
-          />
-          <Box sx={{ mt: 2.5 }}>
-            <ErrorCard
-              text={
-                <>
-                  まだ復習単語がありません。
-                  <br />
-                  単語一覧やテストの誤答から追加されます。
-                </>
-              }
-              buttonLabel="単語帳を見る"
-              href="/wordbooks"
-            />
-          </Box>
-        </Box>
-      );
-    }
-
-    // 取得中 or startTransition の反映待ち（シャッフル前の順で出題しない）
+  if (loading && taggedWords.length === 0) {
     return (
       <Box sx={{ position: "relative", minHeight: 160 }}>
         <LoadingSpinner />
@@ -76,5 +34,60 @@ export default function ReviewTestPage() {
     );
   }
 
-  return <WordbookTest words={shuffledWords} />;
+  return (
+    <WordbookListLayout
+      header={
+        <SectionTitle
+          icon={<SellOutlinedIcon />}
+          subTitle="Tagged Words for Review"
+          title="復習単語"
+        />
+      }
+      description={
+        <Box>
+          <Typography>タグを付けた単語をまとめて復習できます。</Typography>
+          <Typography>登録単語数：{taggedWords.length}語</Typography>
+        </Box>
+      }
+      form={
+        <Button
+          href="/wordbooks/review/test"
+          disabled={taggedWords.length === 0}
+          color="#3b82f6"
+          hoverColor="#2563eb"
+        >
+          今すぐはじめる
+        </Button>
+      }
+      list={
+        taggedWords.length === 0 ? (
+          <ErrorCard
+            text={
+              <>
+                まだ復習単語がありません。
+                <br />
+                単語一覧やテスト結果から追加できます。
+              </>
+            }
+            buttonLabel="単語帳を見る"
+            href="/wordbooks"
+          />
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {taggedWords.map((word) => (
+              <WordCard
+                key={word.id}
+                question={word.question}
+                answer={word.answer}
+                opened
+                review
+                onTagToggle={() => handleTagToggle(word.id)}
+                deletable={false}
+              />
+            ))}
+          </Box>
+        )
+      }
+    />
+  );
 }

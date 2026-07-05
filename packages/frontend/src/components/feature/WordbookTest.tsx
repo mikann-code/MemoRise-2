@@ -3,16 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRenameOutlineOutlined";
+import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
 import { SectionTitle, Button, JudgeButtons } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
+import { useSnackbar } from "@/components/feature/SnackbarProvider";
 import { useCreateStudyRecordMutation } from "@/graphql/mutations/createStudyRecord";
 import { StudyRecordKind } from "@/gql/graphql";
 
 type Word = { id: string; question: string; answer: string };
 
+// 結果画面のボタン内容（アイコン + 文字）を中央寄せする共通 sx。
+// アイコン有無で行ボックスの高さがぶれないよう、登録／一覧に戻るの両ボタンで同じ構造にして
+// 縦位置を揃える（Button は既定サイズだと display:block なので子側で中央寄せを担う）。
+const buttonContentSx = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "6px",
+} as const;
+
 type Props = {
-  /** 復習専用テスト（/wordbooks/review）では未指定。記録は単語帳なしで保存し、終了後は単語帳一覧へ戻る。 */
+  /** 復習専用テスト（/wordbooks/review/test）では未指定。記録は単語帳なしで保存し、終了後は復習単語一覧へ戻る。 */
   wordbookId?: string;
   /** シャッフル済みの出題順（ページ側で startTransition を使って並べ替える）。 */
   words: Word[];
@@ -66,19 +78,21 @@ function ProgressInfo({ current, total, rate }: { current: number; total: number
 /**
  * 自作単語帳の単語テスト本体（v1 の TestBody を踏襲。公式単語帳の BasicWordTest と同じ見た目）。
  * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。
- * 不正解は addTaggedWord を await してから次へ進め、確実に復習タグへ登録する（docs/frontend.md §5）。
+ * 誤答の復習タグは自動登録せず、結果画面の「間違えた単語を復習リストに登録」（confirm あり）で
+ * まとめて登録する（docs/frontend.md §5）。
  * 完了で結果画面（正答率・間違えた単語一覧）を表示し、学習記録を 1 回だけ保存する
  * （hasPostedRef で Strict Mode の二重実行・二重送信を防止）。
- * wordbookId なしは復習専用テスト（記録は単語帳なし・戻り先は単語帳一覧）。
+ * wordbookId なしは復習専用テスト（記録は単語帳なし・戻り先は復習単語一覧）。
  */
 export default function WordbookTest({ wordbookId, words }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [opened, setOpened] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongWords, setWrongWords] = useState<Word[]>([]);
-  // 誤答のタグ登録（await）中の連打で二重判定・二重進行しないようにする。
-  const [judging, setJudging] = useState(false);
-  const { isTagged, addTag, toggleTag } = useReviewTags();
+  // 一括登録（mutation → refetch）中の連打で二重送信しないようにする。
+  const [registering, setRegistering] = useState(false);
+  const { isTagged, addTags, toggleTag } = useReviewTags();
+  const { confirm, notify } = useSnackbar();
   const [createStudyRecord] = useCreateStudyRecordMutation();
   const hasPostedRef = useRef(false);
 
@@ -121,18 +135,32 @@ export default function WordbookTest({ wordbookId, words }: Props) {
     goNext();
   };
 
-  const handleWrong = async () => {
-    if (judging) return;
-    setJudging(true);
+  const handleWrong = () => {
+    setWrongWords((prev) => [...prev, currentWord]);
+    goNext();
+  };
+
+  // 結果画面の一括登録対象（既にタグ済みの単語は除く。全て登録済みならボタンごと消える）。
+  const untaggedWrongWords = wrongWords.filter((w) => !isTagged(w.id));
+
+  const handleRegisterWrongWords = async () => {
+    if (registering) return;
+    const targets = untaggedWrongWords;
+    if (
+      !(await confirm(
+        `間違えた単語 ${targets.length} 件を復習リストに登録しますか？`,
+      ))
+    ) {
+      return;
+    }
+    setRegistering(true);
     try {
-      if (currentWord && !isTagged(currentWord.id)) {
-        // タグ登録に失敗してもテストは続行する（結果画面のタグアイコンから付け直せる）。
-        await addTag(currentWord.id).catch(() => {});
-      }
-      setWrongWords((prev) => [...prev, currentWord]);
-      goNext();
+      await addTags(targets.map((w) => w.id));
+      notify("復習リストに登録しました");
+    } catch {
+      notify("復習リストへの登録に失敗しました");
     } finally {
-      setJudging(false);
+      setRegistering(false);
     }
   };
 
@@ -165,12 +193,37 @@ export default function WordbookTest({ wordbookId, words }: Props) {
             ))}
           </Box>
 
-          <Box sx={{ mt: 2.5 }}>
-            <Button
-              href={wordbookId ? `/wordbooks/${wordbookId}/list` : "/wordbooks"}
-            >
-              一覧に戻る
-            </Button>
+          {/* 登録（復習ブランドのオレンジ + アイコン）と一覧へ戻る（青系）を横並びに。
+              色とアイコンで役割を区別し、同色 2 連ボタンを避ける。 */}
+          <Box
+            sx={{ mt: 2.5, display: "flex", alignItems: "stretch", gap: "12px" }}
+          >
+            {untaggedWrongWords.length > 0 && (
+              <Box sx={{ flex: 1 }}>
+                <Button onClick={handleRegisterWrongWords} disabled={registering}>
+                  <Box component="span" sx={buttonContentSx}>
+                    <BookmarkAddOutlinedIcon sx={{ fontSize: 18 }} />
+                    復習リストに登録
+                  </Box>
+                </Button>
+              </Box>
+            )}
+            <Box sx={{ flex: 1 }}>
+              <Button
+                href={
+                  wordbookId
+                    ? `/wordbooks/${wordbookId}/list`
+                    : "/wordbooks/review"
+                }
+                color="#3b82f6"
+                hoverColor="#2563eb"
+              >
+                {/* 登録ボタンと縦位置を揃えるため、素のテキストも同じ flex 中央寄せで包む。 */}
+                <Box component="span" sx={buttonContentSx}>
+                  一覧に戻る
+                </Box>
+              </Button>
+            </Box>
           </Box>
         </Box>
       </Box>
@@ -216,7 +269,7 @@ export default function WordbookTest({ wordbookId, words }: Props) {
           <JudgeButtons
             onCorrect={handleCorrect}
             onWrong={handleWrong}
-            disabled={!opened || judging}
+            disabled={!opened}
           />
         </Box>
       </Box>

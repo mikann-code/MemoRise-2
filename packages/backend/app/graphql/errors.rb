@@ -20,4 +20,11 @@ module Errors
       super(message, code: "FORBIDDEN")
     end
   end
+
+  # 引数の値が不正なとき（存在しない年月など）。
+  class BadRequest < BaseError
+    def initialize(message = "リクエストが不正です")
+      super(message, code: "BAD_REQUEST")
+    end
+  end
 end

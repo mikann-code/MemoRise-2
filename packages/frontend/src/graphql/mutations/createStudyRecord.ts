@@ -39,5 +39,14 @@ export const CreateStudyRecordDocument = graphql(`
 export type { CreateStudyRecordMutationVariables };
 
 export function useCreateStudyRecordMutation() {
-  return useMutation(CreateStudyRecordDocument);
+  return useMutation(CreateStudyRecordDocument, {
+    // 記録系クエリは cache-first（集計系）なので、保存後にキャッシュを捨てて
+    // 次回表示時に再取得させる（カレンダー・週 streak・直近リストの最新化）。
+    update(cache) {
+      cache.evict({ fieldName: "studyRecords" });
+      cache.evict({ fieldName: "studyRecordsWeek" });
+      cache.evict({ fieldName: "studyRecordsRecent" });
+      cache.gc();
+    },
+  });
 }

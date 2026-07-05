@@ -1,10 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
 /**
- * 学習記録の保存と復習タグの代表導線を検証する E2E（#10）。
- * 単語テストで誤答 → 復習タグが自動登録され、終了時に学習記録が 1 回だけ保存される →
- * /wordbooks/review の復習専用テストで誤答単語だけを再学習 →
- * 一覧の復習件数バッジに実数が出る、をひとつなぎで通す。
+ * 学習記録の保存と復習タグの代表導線を検証する E2E（#10 + 要件変更）。
+ * 単語テストで誤答 → 結果画面の「間違えた単語を復習リストに登録」（confirm あり）でまとめて登録 →
+ * 終了時に学習記録が 1 回だけ保存される → /wordbooks/review の復習単語一覧 →
+ * 「今すぐはじめる」で復習専用テスト（/wordbooks/review/test）→ 結果から一覧へ戻る、をひとつなぎで通す。
+ * 単語一覧のタグ付け・外しの confirm は別テストで検証する。
  * GraphQL はモックし、タグの登録・記録の保存はクロージャ内の状態に反映させる。
  */
 
@@ -28,9 +29,11 @@ type StudyRecordCall = {
 };
 
 async function mockGraphql(page: Page) {
-  // 復習タグ（新しい順）と、保存された学習記録の呼び出し履歴
+  // 復習タグ（新しい順）と、各 mutation の呼び出し履歴
   const taggedWords: MockWord[] = [];
   const studyRecordCalls: StudyRecordCall[] = [];
+  const addTaggedWordCalls: string[] = [];
+  const removeTaggedWordCalls: string[] = [];
 
   await page.route("**/graphql", async (route) => {
     const body = route.request().postDataJSON() as {
@@ -99,6 +102,7 @@ async function mockGraphql(page: Page) {
     }
 
     if (op === "AddTaggedWord") {
+      addTaggedWordCalls.push(String(vars.wordId));
       const word = WORDS.find((w) => w.id === String(vars.wordId))!;
       if (!taggedWords.some((w) => w.id === word.id)) {
         taggedWords.unshift(word);
@@ -115,6 +119,7 @@ async function mockGraphql(page: Page) {
     }
 
     if (op === "RemoveTaggedWord") {
+      removeTaggedWordCalls.push(String(vars.wordId));
       const index = taggedWords.findIndex((w) => w.id === String(vars.wordId));
       if (index !== -1) taggedWords.splice(index, 1);
       await json({
@@ -153,13 +158,18 @@ async function mockGraphql(page: Page) {
     await json({ me: null });
   });
 
-  return { taggedWords, studyRecordCalls };
+  return {
+    taggedWords,
+    studyRecordCalls,
+    addTaggedWordCalls,
+    removeTaggedWordCalls,
+  };
 }
 
-test("誤答が復習タグに登録され、記録が 1 回だけ保存され、復習専用テストを実施できる（代表導線）", async ({
+test("誤答を結果画面から復習リストへ一括登録し、復習単語一覧を経由して復習テストを実施できる（代表導線）", async ({
   page,
 }) => {
-  const { studyRecordCalls } = await mockGraphql(page);
+  const { studyRecordCalls, addTaggedWordCalls } = await mockGraphql(page);
 
   // --- 単語テスト：1 問目は正解、2 問目は不正解にする ---
   await page.goto("/wordbooks/10/test");
@@ -177,12 +187,13 @@ test("誤答が復習タグに登録され、記録が 1 回だけ保存され�
   await page.getByRole("button", { name: "答えを見る" }).click();
   await page.getByRole("button", { name: "不正解", exact: true }).click();
 
-  // 結果画面：誤答した単語が復習タグ付き（オレンジ枠）で表示される
+  // 結果画面：誤答した単語が表示される。誤答時点では復習タグは自動登録されない
   await expect(page.getByRole("heading", { name: "テスト結果" })).toBeVisible();
   await expect(page.getByText("正答率 50%")).toBeVisible();
   await expect(
     page.getByText(wrongWord.question, { exact: true }),
   ).toBeVisible();
+  expect(addTaggedWordCalls).toHaveLength(0);
 
   // 学習記録は 1 回だけ・単語帳付きで保存される（冪等）
   await expect
@@ -195,7 +206,34 @@ test("誤答が復習タグに登録され、記録が 1 回だけ保存され�
     wordbookId: "10",
   });
 
-  // --- 一覧のバッジに実数（1 件）が反映され、復習専用テストへ遷移できる ---
+  // --- 一括登録：confirm でキャンセルすると登録されない ---
+  const registerButton = page.getByRole("button", {
+    name: "復習リストに登録",
+  });
+  await registerButton.click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByText("間違えた単語 1 件を復習リストに登録しますか？"),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "キャンセル" }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(addTaggedWordCalls).toHaveLength(0);
+
+  // --- 一括登録：OK で登録され、登録済みになるとボタンは消える ---
+  await registerButton.click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "OK" })
+    .click();
+  await expect
+    .poll(() => addTaggedWordCalls.length, { message: "タグ登録の呼び出し回数" })
+    .toBe(1);
+  expect(addTaggedWordCalls[0]).toBe(wrongWord.id);
+  await expect(page.getByText("復習リストに登録しました")).toBeVisible();
+  await expect(registerButton).not.toBeVisible();
+
+  // --- 一覧のバッジに実数（1 件）が反映され、復習単語一覧へ遷移できる ---
   await page.getByRole("link", { name: "一覧に戻る" }).click();
   await expect(page).toHaveURL(/\/wordbooks\/10\/list$/);
   await page.goto("/wordbooks");
@@ -203,8 +241,17 @@ test("誤答が復習タグに登録され、記録が 1 回だけ保存され�
   await expect(reviewBadge).toBeVisible();
   await reviewBadge.click();
 
-  // --- 復習専用テスト：誤答した単語だけが出題される ---
+  // --- 復習単語一覧：登録した単語が並び、「今すぐはじめる」でテストへ（自作単語帳と同じ導線） ---
   await expect(page).toHaveURL(/\/wordbooks\/review$/);
+  await expect(page.getByRole("heading", { name: "復習単語" })).toBeVisible();
+  await expect(page.getByText("登録単語数：1語")).toBeVisible();
+  await expect(
+    page.getByText(wrongWord.question, { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "今すぐはじめる" }).click();
+
+  // --- 復習専用テスト：登録した単語だけが出題される ---
+  await expect(page).toHaveURL(/\/wordbooks\/review\/test$/);
   await expect(page.getByRole("heading", { name: "復習テスト" })).toBeVisible();
   await expect(page.getByText("1 / 1 問目")).toBeVisible();
   await expect(
@@ -227,7 +274,59 @@ test("誤答が復習タグに登録され、記録が 1 回だけ保存され�
     wordbookId: null,
   });
 
-  // 復習テストの結果からは単語帳一覧へ戻る
+  // 復習テストの結果からは復習単語一覧へ戻る
   await page.getByRole("link", { name: "一覧に戻る" }).click();
-  await expect(page).toHaveURL(/\/wordbooks$/);
+  await expect(page).toHaveURL(/\/wordbooks\/review$/);
+});
+
+test("単語一覧のタグ付け・外しは confirm を挟んでから反映される", async ({
+  page,
+}) => {
+  const { addTaggedWordCalls, removeTaggedWordCalls } = await mockGraphql(page);
+
+  await page.goto("/wordbooks/10/list");
+  await expect(
+    page.getByRole("heading", { name: "テスト英単語帳" }),
+  ).toBeVisible();
+
+  // --- タグを付ける：キャンセルすると登録されない ---
+  const firstTagButton = page.getByRole("button", { name: "復習タグ" }).first();
+  await firstTagButton.click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(
+    dialog.getByText("この単語を復習リストに登録しますか？"),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "キャンセル" }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(addTaggedWordCalls).toHaveLength(0);
+
+  // --- タグを付ける：OK で登録される ---
+  await firstTagButton.click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "OK" })
+    .click();
+  await expect
+    .poll(() => addTaggedWordCalls.length, { message: "タグ登録の呼び出し回数" })
+    .toBe(1);
+  expect(addTaggedWordCalls[0]).toBe(WORDS[0].id);
+
+  // --- タグを外す：外し側も confirm を挟む ---
+  await firstTagButton.click();
+  await expect(
+    page
+      .getByRole("alertdialog")
+      .getByText("この単語を復習リストの登録から外しますか？"),
+  ).toBeVisible();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "OK" })
+    .click();
+  await expect
+    .poll(
+      () => removeTaggedWordCalls.length,
+      { message: "タグ解除の呼び出し回数" },
+    )
+    .toBe(1);
+  expect(removeTaggedWordCalls[0]).toBe(WORDS[0].id);
 });

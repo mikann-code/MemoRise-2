@@ -17,7 +17,8 @@ import ButtonBase from "@mui/material/ButtonBase";
  * window.confirm / window.alert の代替となる自作 UI。
  * - confirm(message): 画面全体を暗くして中央にメッセージ + OK / キャンセルを表示し
  *   Promise<boolean> を返す（オーバーレイのクリックはキャンセル扱い）
- * - notify(message) : 下部（Footer の上）に表示し、一定時間後に自動で消える
+ * - notify(message) : confirm と同じ画面中央に表示し、一定時間後に自動で消える
+ *   （暗転はしない＝操作をブロックしない非モーダル通知）
  * どちらも同じ動き（下からスライドイン → 下に沈みながらフェードアウト）で出入りする。
  * 確認中に別の confirm が呼ばれた場合、先の確認はキャンセル（false）扱いで置き換える。
  */
@@ -85,24 +86,28 @@ const dialogSx = {
   },
 };
 
+// confirm のダイアログと同じ画面中央に出す（暗転は付けない非モーダル通知）。
+// 中央寄せは translate(-50%, -50%) で行い、入退場アニメーションはその分をオフセットする。
 const barSx = {
   position: "fixed" as const,
   left: "50%",
-  bottom: "96px", // Footer（bottom: 2 + 高さ約 80px）の上
+  top: "50%",
   zIndex: 1400,
+  minWidth: 360,
   maxWidth: "calc(100vw - 40px)",
   backgroundColor: "#1f1f1f",
   border: "1px solid var(--color-border)",
   borderRadius: "14px",
   boxShadow: "0 4px 16px rgba(0,0,0,.5)",
-  p: "12px 16px",
+  p: "28px 32px",
+  textAlign: "center" as const,
   "@keyframes notify-in": {
-    from: { opacity: 0, transform: "translate(-50%, 24px)" },
-    to: { opacity: 1, transform: "translate(-50%, 0)" },
+    from: { opacity: 0, transform: "translate(-50%, calc(-50% + 24px))" },
+    to: { opacity: 1, transform: "translate(-50%, -50%)" },
   },
   "@keyframes notify-out": {
-    from: { opacity: 1, transform: "translate(-50%, 0)" },
-    to: { opacity: 0, transform: "translate(-50%, 12px)" },
+    from: { opacity: 1, transform: "translate(-50%, -50%)" },
+    to: { opacity: 0, transform: "translate(-50%, calc(-50% + 12px))" },
   },
 };
 

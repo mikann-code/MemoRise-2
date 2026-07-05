@@ -200,14 +200,13 @@ export default function WordbookDetailPage({ params }: Props) {
     }
   };
 
-  // 復習タグの外し操作だけ確認する（v1 踏襲）。付ける操作はそのまま。
+  // 復習タグは付け外しの両方向とも確認する（付ける側は mutation → refetch の反映待ちで
+  // 一瞬未登録に見えるため、confirm を挟んで操作の成立を明示する）。
   const handleTagToggle = async (wordId: string) => {
-    if (
-      isTagged(wordId) &&
-      !(await confirm("この単語を復習リストの登録から外しますか？"))
-    ) {
-      return;
-    }
+    const message = isTagged(wordId)
+      ? "この単語を復習リストの登録から外しますか？"
+      : "この単語を復習リストに登録しますか？";
+    if (!(await confirm(message))) return;
     // 失敗時は表示が変わらないだけなので握りつぶす（再操作できる）。
     await toggleTag(wordId).catch(() => {});
   };

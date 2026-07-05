@@ -3,11 +3,26 @@
 import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRenameOutlineOutlined";
+import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
 import { SectionTitle, Button, JudgeButtons } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useBasicWordSession } from "@/components/feature/BasicWordSessionProvider";
+import { useReviewTags } from "@/components/feature/ReviewTagProvider";
+import { useSnackbar } from "@/components/feature/SnackbarProvider";
+import { useCreateStudyRecordMutation } from "@/graphql/mutations/createStudyRecord";
+import { StudyRecordKind } from "@/gql/graphql";
 
 type Word = { id: string; question: string; answer: string };
+
+// 結果画面のボタン内容（アイコン + 文字）を中央寄せする共通 sx。
+// アイコン有無で行ボックスの高さがぶれないよう、登録／一覧に戻るの両ボタンで同じ構造にして
+// 縦位置を揃える（Button は既定サイズだと display:block なので子側で中央寄せを担う）。
+const buttonContentSx = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "6px",
+} as const;
 
 type Props = {
   parentId: string;
@@ -72,9 +87,13 @@ function ProgressInfo({ current, total, rate }: { current: number; total: number
 
 /**
  * 公式単語帳の単語テスト本体（v1 の TestBody を踏襲）。
- * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。不正解は復習タグへ自動追加。
- * 完了で結果画面（正答率・間違えた単語一覧）を表示し、章を完了扱いにして次 Part を解放する。
- * #2 には学習記録の保存 API がまだ無いため、完了時の記録は行わずセッション状態の更新のみ（保存なし）。
+ * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。
+ * 誤答の復習タグは自動追加せず、結果画面の「間違えた単語を復習リストに登録」（confirm あり）で
+ * まとめて登録する（自作単語帳の WordbookTest と同じ UX）。復習タグはバックエンド保存
+ * （ReviewTagProvider）で自作単語帳と共通の復習単語一覧に載る。章の完了扱い（次 Part 解放）だけ
+ * まだ保存 API が無いため BasicWordSessionProvider の一時状態を使う。
+ * 完了時は学習記録も保存する（kind = WORDBOOK・章の単語帳 ID を wordbookId に渡す。
+ * 記録はベストエフォートで失敗しても結果画面は表示する。二重送信は completedRef で防止）。
  */
 export default function BasicWordTest({ parentId, chapterId, words: initial }: Props) {
   const [words] = useState(() => shuffle(initial));
@@ -82,7 +101,12 @@ export default function BasicWordTest({ parentId, chapterId, words: initial }: P
   const [opened, setOpened] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongWords, setWrongWords] = useState<Word[]>([]);
-  const { isTagged, toggleTag, markCompleted } = useBasicWordSession();
+  // 一括登録（mutation → refetch）中の連打で二重送信しないようにする。
+  const [registering, setRegistering] = useState(false);
+  const { markCompleted } = useBasicWordSession();
+  const { isTagged, addTags, toggleTag } = useReviewTags();
+  const { confirm, notify } = useSnackbar();
+  const [createStudyRecord] = useCreateStudyRecordMutation();
   const completedRef = useRef(false);
 
   const total = words.length;
@@ -92,13 +116,22 @@ export default function BasicWordTest({ parentId, chapterId, words: initial }: P
   const finished = currentIndex >= total;
   const currentWord = words[currentIndex];
 
-  // 完了時に章を完了扱いにする（次 Part 解放）。多重実行を ref で一度きりに抑える。
+  // 完了時に章を完了扱いにし（次 Part 解放）、学習記録を保存する。多重実行を ref で
+  // 一度きりに抑える。記録はベストエフォート（失敗しても結果画面はそのまま表示する）。
   useEffect(() => {
     if (finished && total > 0 && !completedRef.current) {
       completedRef.current = true;
       markCompleted(chapterId);
+      createStudyRecord({
+        variables: {
+          kind: StudyRecordKind.Wordbook,
+          totalCount: total,
+          correctCount,
+          wordbookId: chapterId,
+        },
+      }).catch(() => {});
     }
-  }, [finished, total, chapterId, markCompleted]);
+  }, [finished, total, correctCount, chapterId, markCompleted, createStudyRecord]);
 
   const goNext = () => {
     if (currentIndex < total - 1) {
@@ -115,9 +148,32 @@ export default function BasicWordTest({ parentId, chapterId, words: initial }: P
   };
 
   const handleWrong = () => {
-    if (currentWord && !isTagged(currentWord.id)) toggleTag(currentWord.id);
     setWrongWords((prev) => [...prev, currentWord]);
     goNext();
+  };
+
+  // 結果画面の一括登録対象（既にタグ済みの単語は除く。全て登録済みならボタンごと消える）。
+  const untaggedWrongWords = wrongWords.filter((w) => !isTagged(w.id));
+
+  const handleRegisterWrongWords = async () => {
+    if (registering) return;
+    const targets = untaggedWrongWords;
+    if (
+      !(await confirm(
+        `間違えた単語 ${targets.length} 件を復習リストに登録しますか？`,
+      ))
+    ) {
+      return;
+    }
+    setRegistering(true);
+    try {
+      await addTags(targets.map((w) => w.id));
+      notify("復習リストに登録しました");
+    } catch {
+      notify("復習リストへの登録に失敗しました");
+    } finally {
+      setRegistering(false);
+    }
   };
 
   if (finished) {
@@ -149,10 +205,33 @@ export default function BasicWordTest({ parentId, chapterId, words: initial }: P
             ))}
           </Box>
 
-          <Box sx={{ mt: 2.5 }}>
-            <Button href={`/basicWord/${parentId}/${chapterId}/list`}>
-              一覧に戻る
-            </Button>
+          {/* 登録（復習ブランドのオレンジ + アイコン）と一覧へ戻る（青系）を横並びに。
+              色とアイコンで役割を区別し、同色 2 連ボタンを避ける。 */}
+          <Box
+            sx={{ mt: 2.5, display: "flex", alignItems: "stretch", gap: "12px" }}
+          >
+            {untaggedWrongWords.length > 0 && (
+              <Box sx={{ flex: 1 }}>
+                <Button onClick={handleRegisterWrongWords} disabled={registering}>
+                  <Box component="span" sx={buttonContentSx}>
+                    <BookmarkAddOutlinedIcon sx={{ fontSize: 18 }} />
+                    復習リストに登録
+                  </Box>
+                </Button>
+              </Box>
+            )}
+            <Box sx={{ flex: 1 }}>
+              <Button
+                href={`/basicWord/${parentId}/${chapterId}/list`}
+                color="#3b82f6"
+                hoverColor="#2563eb"
+              >
+                {/* 登録ボタンと縦位置を揃えるため、素のテキストも同じ flex 中央寄せで包む。 */}
+                <Box component="span" sx={buttonContentSx}>
+                  一覧に戻る
+                </Box>
+              </Button>
+            </Box>
           </Box>
         </Box>
       </Box>
