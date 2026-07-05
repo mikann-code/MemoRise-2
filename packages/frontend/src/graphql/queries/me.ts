@@ -14,6 +14,7 @@ export const MeDocument = graphql(`
       role
       streak
       wordsCount
+      createdAt
     }
   }
 `);

@@ -43,7 +43,7 @@ type ConfirmState = {
   resolve: (ok: boolean) => void;
 };
 
-const NOTIFY_DURATION_MS = 2000;
+const NOTIFY_DURATION_MS = 1000;
 const ENTER_ANIMATION = "300ms cubic-bezier(0.22, 1, 0.36, 1) both";
 const EXIT_ANIMATION_MS = 200;
 

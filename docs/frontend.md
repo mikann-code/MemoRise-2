@@ -11,10 +11,10 @@ App Router の Route Group `(xxx)` で、URL に出さずに権限ごとに空�
 | グループ | 認証 | 画面（実装済み） |
 | --- | --- | --- |
 | `(public)` | 不要 | `/login`、`/signup` |
-| `(auth)` | 必須 | `/`（ホーム）、`/publicWordbooks`、`/publicWordbooks/[parentId]`、`/publicWordbooks/[parentId]/[childrenId]/list`、`/publicWordbooks/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`（復習単語一覧）、`/wordbooks/review/test`（復習専用テスト）、`/study-records`（学習記録） |
+| `(auth)` | 必須 | `/`（ホーム）、`/publicWordbooks`、`/publicWordbooks/[parentId]`、`/publicWordbooks/[parentId]/[childrenId]/list`、`/publicWordbooks/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`（復習単語一覧）、`/wordbooks/review/test`（復習専用テスト）、`/study-records`（学習記録）、`/my-page`（マイページ）、`/my-page/edit`（プロフィール編集） |
 | `(admin)` | 管理者 | `/admin-login`、`/admin` |
 
-未実装（今後追加予定）：`/my-page`、`/my-page/edit`、`/admin/users`、`/admin/wordbooks` 配下。
+未実装（今後追加予定）：`/admin/users`、`/admin/wordbooks` 配下。
 
 - 親子単語帳は `/[parentId]/[childrenId]` の二段ルーティングで「TOEIC > Day 1」のような体系を表現。
 - `(auth)` は `AuthProvider`（`me` クエリ）でガードし、未認証は `/login` へリダイレクト。`(admin)` は `AdminAuthProvider`（`adminMe`）で同様にガードする。
@@ -39,7 +39,7 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | `common/ui/` | 汎用パーツ | Button / ButtonSecondary / FloatingInput / JudgeButtons / LoadingSpinner / SectionTitle |
 | `common/card/` | カード | WordCard / ErrorCard / DailyRecordCard（学習記録 1 日分） |
 | `layout/` | レイアウト | Layout（共通シェル）/ Header / Footer / FormLayout / WordbookListLayout |
-| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / PublicWordbookSessionProvider / ReviewTagProvider / PublicWordbookTest / WordbookTest / StudyCalendar（学習カレンダー） |
+| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / ReviewTagProvider / PublicWordbookTest / WordbookTest / StudyCalendar（学習カレンダー） |
 | `home/` | トップ専用 | DailyWord / PublicWordbook / CraftWord / WeeklyStreakCard |
 
 設計指針：
@@ -56,8 +56,10 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
   公式単語帳の単語もバックエンドがタグ付けに対応済み（`base_tagged_word_mutation.rb`）なので、
   自作・公式のどちらの復習タグも同じ復習単語一覧（`/wordbooks/review`）に載る。
   ホームのバッジ（DailyWord）は Provider の外なので同じクエリを直接引く（Apollo キャッシュ共有）。
-- **BE 未実装の機能はクライアント一時状態で先行再現**する：publicWordbooks 配下の**章の進捗（パート解放）**は
-  `PublicWordbookSessionProvider`（layout に mount、リロードで初期化）で UI だけ v1 を再現している（進捗の永続化は別途）。
+- **章の進捗（パート解放）はバックエンド保存**（#12）：publicWordbooks 配下の教材トップ（親）が
+  `wordbookProgresses(wordbookId)` を引き、進捗レコードが存在する章＝解放済み・`completed`＝テスト完了で解放状態を描く。
+  テスト完了時に `completeWordbookProgress` を発火して次章を解放する（`completedRef` で二重送信を防ぐ）。
+  先行再現に使っていた `PublicWordbookSessionProvider`（クライアント一時状態）は廃止した。
 
 ## 4. 主要画面とデータ
 
@@ -89,7 +91,7 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 `/publicWordbooks/.../test`（PublicWordbookTest）は復習タグをバックエンド保存（`ReviewTagProvider`）に接続済みで、
 誤答の一括登録は自作単語帳と同じく復習単語一覧に反映される。完了時は学習記録も保存する
 （`kind: WORDBOOK` + 章の単語帳 ID を wordbookId に渡す。自作単語帳のテストと同じ方式）。
-章の完了（次 Part 解放）だけは保存 API がまだ無いためセッション一時状態で代替している（→ §3）。
+章の完了（次 Part 解放）もバックエンド保存（`completeWordbookProgress`）に接続済みで、教材トップの解放状態に反映される（→ §3）。
 
 ## 6. 認証・通信（v1 → v2）
 
