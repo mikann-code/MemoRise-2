@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRenameOutlineOutlined";
 import { SectionTitle, Button, JudgeButtons } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
-import { useWordbookSession } from "@/components/feature/WordbookSessionProvider";
+import { useReviewTags } from "@/components/feature/ReviewTagProvider";
+import { useCreateStudyRecordMutation } from "@/graphql/mutations/createStudyRecord";
+import { StudyRecordKind } from "@/gql/graphql";
 
 type Word = { id: string; question: string; answer: string };
 
 type Props = {
-  wordbookId: string;
+  /** 復習専用テスト（/wordbooks/review）では未指定。記録は単語帳なしで保存し、終了後は単語帳一覧へ戻る。 */
+  wordbookId?: string;
   /** シャッフル済みの出題順（ページ側で startTransition を使って並べ替える）。 */
   words: Word[];
 };
@@ -62,17 +65,22 @@ function ProgressInfo({ current, total, rate }: { current: number; total: number
 
 /**
  * 自作単語帳の単語テスト本体（v1 の TestBody を踏襲。公式単語帳の BasicWordTest と同じ見た目）。
- * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。不正解は復習タグへ自動追加。
- * 完了で結果画面（正答率・間違えた単語一覧）を表示する。
- * #2 には学習記録の保存 API がまだ無いため（#10 で対応）、完了時の記録は行わず
- * セッション状態（復習タグ）の更新のみ（保存なし）。
+ * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。
+ * 不正解は addTaggedWord を await してから次へ進め、確実に復習タグへ登録する（docs/frontend.md §5）。
+ * 完了で結果画面（正答率・間違えた単語一覧）を表示し、学習記録を 1 回だけ保存する
+ * （hasPostedRef で Strict Mode の二重実行・二重送信を防止）。
+ * wordbookId なしは復習専用テスト（記録は単語帳なし・戻り先は単語帳一覧）。
  */
 export default function WordbookTest({ wordbookId, words }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [opened, setOpened] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongWords, setWrongWords] = useState<Word[]>([]);
-  const { isTagged, toggleTag } = useWordbookSession();
+  // 誤答のタグ登録（await）中の連打で二重判定・二重進行しないようにする。
+  const [judging, setJudging] = useState(false);
+  const { isTagged, addTag, toggleTag } = useReviewTags();
+  const [createStudyRecord] = useCreateStudyRecordMutation();
+  const hasPostedRef = useRef(false);
 
   const total = words.length;
   const answeredCount = currentIndex;
@@ -80,6 +88,24 @@ export default function WordbookTest({ wordbookId, words }: Props) {
     answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
   const finished = currentIndex >= total;
   const currentWord = words[currentIndex];
+
+  // テスト終了を検知して学習記録を 1 回だけ保存する。保存失敗でも結果画面はそのまま
+  // 表示する（記録はベストエフォート。v1 の fire-and-forget を踏襲）。
+  // 記録の種類は kind で明示する（単語帳ありは WORDBOOK、復習専用テストは REVIEW）。
+  useEffect(() => {
+    if (!finished || total === 0 || hasPostedRef.current) return;
+    hasPostedRef.current = true;
+    createStudyRecord({
+      variables: wordbookId
+        ? {
+            kind: StudyRecordKind.Wordbook,
+            totalCount: total,
+            correctCount,
+            wordbookId,
+          }
+        : { kind: StudyRecordKind.Review, totalCount: total, correctCount },
+    }).catch(() => {});
+  }, [finished, total, correctCount, wordbookId, createStudyRecord]);
 
   const goNext = () => {
     if (currentIndex < total - 1) {
@@ -95,10 +121,19 @@ export default function WordbookTest({ wordbookId, words }: Props) {
     goNext();
   };
 
-  const handleWrong = () => {
-    if (currentWord && !isTagged(currentWord.id)) toggleTag(currentWord.id);
-    setWrongWords((prev) => [...prev, currentWord]);
-    goNext();
+  const handleWrong = async () => {
+    if (judging) return;
+    setJudging(true);
+    try {
+      if (currentWord && !isTagged(currentWord.id)) {
+        // タグ登録に失敗してもテストは続行する（結果画面のタグアイコンから付け直せる）。
+        await addTag(currentWord.id).catch(() => {});
+      }
+      setWrongWords((prev) => [...prev, currentWord]);
+      goNext();
+    } finally {
+      setJudging(false);
+    }
   };
 
   if (finished) {
@@ -131,7 +166,11 @@ export default function WordbookTest({ wordbookId, words }: Props) {
           </Box>
 
           <Box sx={{ mt: 2.5 }}>
-            <Button href={`/wordbooks/${wordbookId}/list`}>一覧に戻る</Button>
+            <Button
+              href={wordbookId ? `/wordbooks/${wordbookId}/list` : "/wordbooks"}
+            >
+              一覧に戻る
+            </Button>
           </Box>
         </Box>
       </Box>
@@ -142,8 +181,8 @@ export default function WordbookTest({ wordbookId, words }: Props) {
     <Box>
       <SectionTitle
         icon={<DriveFileRenameOutlineOutlinedIcon />}
-        subTitle="Words Test"
-        title="単語テスト"
+        subTitle={wordbookId ? "Words Test" : "Review Test"}
+        title={wordbookId ? "単語テスト" : "復習テスト"}
       />
 
       <Box
@@ -177,7 +216,7 @@ export default function WordbookTest({ wordbookId, words }: Props) {
           <JudgeButtons
             onCorrect={handleCorrect}
             onWrong={handleWrong}
-            disabled={!opened}
+            disabled={!opened || judging}
           />
         </Box>
       </Box>

@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
-import { WordbookSessionProvider } from "@/components/feature/WordbookSessionProvider";
+import { ReviewTagProvider } from "@/components/feature/ReviewTagProvider";
 
 /**
  * 自作単語帳（wordbooks 配下）の共通レイアウト。
- * 復習タグの一時状態を Provider で配下ページ（一覧 / 単語一覧）へ配る。
- * App Router の layout はページ遷移では再マウントされないため、単語帳をまたいでも状態が保たれる。
- * バックエンド未対応のため保存はせず、リロードで初期化される（basicWord/layout.tsx と同じ方針）。
+ * 復習タグ状態（バックエンド保存・taggedWords クエリ）を Provider で
+ * 配下ページ（一覧 / 単語一覧 / テスト / 復習専用テスト）へ配る。
  */
 export default function WordbooksLayout({ children }: { children: ReactNode }) {
-  return <WordbookSessionProvider>{children}</WordbookSessionProvider>;
+  return <ReviewTagProvider>{children}</ReviewTagProvider>;
 }

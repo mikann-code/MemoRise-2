@@ -6,11 +6,12 @@ import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import { SectionTitle, Button } from "@/components/common/ui";
 import { fallbackWords } from "@/constants/fallbackWords";
+import { useTaggedWordsQuery } from "@/graphql/queries/taggedWords";
 
 /**
- * 今日の一問（ホーム）。todayWord / taggedWords API は v2 未実装のため、
- * v1 と同じくマウント時に fallbackWords から 1 件だけ抽選して表示し、
- * 復習バッジは 0 件のプレースホルダで先行表示する（API 接続は後続）。
+ * 今日の一問（ホーム）。todayWord API は v2 未実装のため、
+ * v1 と同じくマウント時に fallbackWords から 1 件だけ抽選して表示する（API 接続は後続）。
+ * 復習バッジは taggedWords クエリの実数（取得失敗・取得中は 0 件表示のフォールバック）。
  */
 
 const wordCell = {
@@ -33,8 +34,8 @@ export default function DailyWord() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- ハイドレーション対策のマウント後 1 回抽選（外部システム同期ではない意図的な例外）
     setWord(fallbackWords[Math.floor(Math.random() * fallbackWords.length)]);
   }, []);
-  // 復習単語 API は未実装のため 0 件（UI のみ先行）。
-  const reviewCount = 0;
+  const { data } = useTaggedWordsQuery();
+  const reviewCount = data?.taggedWords.length ?? 0;
 
   return (
     <Box component="section">

@@ -35,6 +35,14 @@ async function mockGraphql(
       return;
     }
 
+    if (op === "TaggedWords") {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data: { taggedWords: [] } }),
+      });
+      return;
+    }
+
     if (op === "PublicWordbooks") {
       await route.fulfill({
         contentType: "application/json",

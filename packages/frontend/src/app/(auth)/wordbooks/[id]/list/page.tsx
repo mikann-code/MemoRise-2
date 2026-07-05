@@ -20,13 +20,13 @@ import { useMyWordbookQuery } from "@/graphql/queries/myWordbook";
 import { useCreateWordMutation } from "@/graphql/mutations/createWord";
 import { useUpdateWordMutation } from "@/graphql/mutations/updateWord";
 import { useDeleteWordMutation } from "@/graphql/mutations/deleteWord";
-import { useWordbookSession } from "@/components/feature/WordbookSessionProvider";
+import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
 
 /**
  * 自作単語帳の単語一覧（v1 の /wordbooks/[id]/list を忠実に再現）。
  * 見出し右に「編集」ピル、追加フォーム（単語 / 意味）＋「単語を登録」「今すぐはじめる」、
- * 下に答えを開いた WordCard を並べる。復習タグは一時状態（保存なし）。
+ * 下に答えを開いた WordCard を並べる。復習タグはバックエンド保存（user_word_tags）。
  * v1 に無い単語の編集は、カードの編集アイコン → その場でインライン編集フォームに切り替える。
  */
 
@@ -59,7 +59,7 @@ export default function WordbookDetailPage({ params }: Props) {
   const [updateWord, { loading: updating }] = useUpdateWordMutation();
   const [deleteWord] = useDeleteWordMutation();
 
-  const { isTagged, toggleTag } = useWordbookSession();
+  const { isTagged, toggleTag } = useReviewTags();
   const { confirm } = useSnackbar();
 
   const [question, setQuestion] = useState("");
@@ -208,7 +208,8 @@ export default function WordbookDetailPage({ params }: Props) {
     ) {
       return;
     }
-    toggleTag(wordId);
+    // 失敗時は表示が変わらないだけなので握りつぶす（再操作できる）。
+    await toggleTag(wordId).catch(() => {});
   };
 
   return (
