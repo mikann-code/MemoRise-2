@@ -9,19 +9,19 @@ import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { SectionTitle, LoadingSpinner, Button } from "@/components/common/ui";
 import { usePublicWordbookQuery } from "@/graphql/queries/publicWordbook";
-import { useBasicWordSession } from "@/components/feature/BasicWordSessionProvider";
+import { usePublicWordbookSession } from "@/components/feature/PublicWordbookSessionProvider";
 
 /**
  * 公式単語帳の親 1 件（教材トップ）。子＝章（Part）を縦に並べ、番号バッジ・進捗バー・解放状態で見せる。
- * v1（memorize）の basicWord/[parentId] を踏襲。解放/完了は #2 にまだ保存 API が無いため、
- * BasicWordSession（クライアント一時状態）から算出する：先頭 Part か「前の Part を完了」で解放。
+ * v1（memorize）の公式単語帳の教材トップを踏襲。解放/完了は #2 にまだ保存 API が無いため、
+ * PublicWordbookSession（クライアント一時状態）から算出する：先頭 Part か「前の Part を完了」で解放。
  */
-export default function BasicWordParentPage() {
+export default function PublicWordbookParentPage() {
   const { parentId } = useParams<{ parentId: string }>();
   const { data, loading, error } = usePublicWordbookQuery({
     variables: { id: parentId },
   });
-  const { completedIds } = useBasicWordSession();
+  const { completedIds } = usePublicWordbookSession();
 
   const wordbook = data?.publicWordbook ?? null;
 
@@ -44,7 +44,7 @@ export default function BasicWordParentPage() {
         </Typography>
         <Box
           component={NextLink}
-          href="/basicWordList"
+          href="/publicWordbooks"
           sx={{ color: "var(--color-primary)" }}
         >
           ← 一覧へ戻る
@@ -85,7 +85,7 @@ export default function BasicWordParentPage() {
       </Typography>
 
       {startPart && (
-        <Button href={`/basicWord/${parentId}/${startPart.id}/test`}>
+        <Button href={`/publicWordbooks/${parentId}/${startPart.id}/test`}>
           今すぐはじめる
         </Button>
       )}
@@ -152,7 +152,7 @@ export default function BasicWordParentPage() {
               {part.unlocked ? (
                 <Box
                   component={NextLink}
-                  href={`/basicWord/${parentId}/${part.id}/test`}
+                  href={`/publicWordbooks/${parentId}/${part.id}/test`}
                   sx={{
                     display: "flex",
                     alignItems: "center",
@@ -247,7 +247,7 @@ export default function BasicWordParentPage() {
               {part.unlocked || part.completed ? (
                 <Box
                   component={NextLink}
-                  href={`/basicWord/${parentId}/${part.id}/list`}
+                  href={`/publicWordbooks/${parentId}/${part.id}/list`}
                   aria-label={`${chapterLabel}の単語一覧`}
                   sx={{
                     flexShrink: 0,

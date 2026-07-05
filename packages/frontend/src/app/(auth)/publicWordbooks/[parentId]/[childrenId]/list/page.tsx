@@ -13,11 +13,11 @@ import { useSnackbar } from "@/components/feature/SnackbarProvider";
 
 /**
  * 章（Part）の単語一覧（(auth)・読み取り専用）。全単語を答え開いた状態のカードで並べる。
- * v1（memorize）の basicWord/[parentId]/[childrenId]/list を踏襲。
+ * v1（memorize）の公式単語帳の章の単語一覧を踏襲。
  * 公式クエリは親しか返さないため親を引いて childrenId の章を取り出す。
  * 復習タグはバックエンド保存（ReviewTagProvider）で自作単語帳の一覧と共通の挙動。
  */
-export default function BasicWordListChapterPage() {
+export default function PublicWordbookListChapterPage() {
   const { parentId, childrenId } = useParams<{
     parentId: string;
     childrenId: string;
@@ -53,7 +53,7 @@ export default function BasicWordListChapterPage() {
         単語帳が見つかりませんでした。{" "}
         <Box
           component={NextLink}
-          href={`/basicWord/${parentId}`}
+          href={`/publicWordbooks/${parentId}`}
           sx={{ color: "var(--color-primary)" }}
         >
           教材トップへ戻る
@@ -90,11 +90,11 @@ export default function BasicWordListChapterPage() {
 
       <Box sx={{ display: "flex", gap: "10px", m: "4px 0 20px" }}>
         <Box sx={{ flex: 1 }}>
-          <Button href={`/basicWord/${parentId}`}>教材トップに戻る</Button>
+          <Button href={`/publicWordbooks/${parentId}`}>教材トップに戻る</Button>
         </Box>
         <Box sx={{ flex: 1 }}>
           <Button
-            href={`/basicWord/${parentId}/${childrenId}/test`}
+            href={`/publicWordbooks/${parentId}/${childrenId}/test`}
             color="#3b82f6"
             hoverColor="#2563eb"
           >

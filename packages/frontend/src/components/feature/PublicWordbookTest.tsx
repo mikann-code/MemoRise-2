@@ -6,7 +6,7 @@ import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRen
 import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
 import { SectionTitle, Button, JudgeButtons } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
-import { useBasicWordSession } from "@/components/feature/BasicWordSessionProvider";
+import { usePublicWordbookSession } from "@/components/feature/PublicWordbookSessionProvider";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
 import { useCreateStudyRecordMutation } from "@/graphql/mutations/createStudyRecord";
@@ -91,11 +91,15 @@ function ProgressInfo({ current, total, rate }: { current: number; total: number
  * 誤答の復習タグは自動追加せず、結果画面の「間違えた単語を復習リストに登録」（confirm あり）で
  * まとめて登録する（自作単語帳の WordbookTest と同じ UX）。復習タグはバックエンド保存
  * （ReviewTagProvider）で自作単語帳と共通の復習単語一覧に載る。章の完了扱い（次 Part 解放）だけ
- * まだ保存 API が無いため BasicWordSessionProvider の一時状態を使う。
+ * まだ保存 API が無いため PublicWordbookSessionProvider の一時状態を使う。
  * 完了時は学習記録も保存する（kind = WORDBOOK・章の単語帳 ID を wordbookId に渡す。
  * 記録はベストエフォートで失敗しても結果画面は表示する。二重送信は completedRef で防止）。
  */
-export default function BasicWordTest({ parentId, chapterId, words: initial }: Props) {
+export default function PublicWordbookTest({
+  parentId,
+  chapterId,
+  words: initial,
+}: Props) {
   const [words] = useState(() => shuffle(initial));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [opened, setOpened] = useState(false);
@@ -103,7 +107,7 @@ export default function BasicWordTest({ parentId, chapterId, words: initial }: P
   const [wrongWords, setWrongWords] = useState<Word[]>([]);
   // 一括登録（mutation → refetch）中の連打で二重送信しないようにする。
   const [registering, setRegistering] = useState(false);
-  const { markCompleted } = useBasicWordSession();
+  const { markCompleted } = usePublicWordbookSession();
   const { isTagged, addTags, toggleTag } = useReviewTags();
   const { confirm, notify } = useSnackbar();
   const [createStudyRecord] = useCreateStudyRecordMutation();
@@ -222,7 +226,7 @@ export default function BasicWordTest({ parentId, chapterId, words: initial }: P
             )}
             <Box sx={{ flex: 1 }}>
               <Button
-                href={`/basicWord/${parentId}/${chapterId}/list`}
+                href={`/publicWordbooks/${parentId}/${chapterId}/list`}
                 color="#3b82f6"
                 hoverColor="#2563eb"
               >
