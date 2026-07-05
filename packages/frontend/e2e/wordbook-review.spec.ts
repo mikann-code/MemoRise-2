@@ -208,7 +208,7 @@ test("誤答を結果画面から復習リストへ一括登録し、復習単�
 
   // --- 一括登録：confirm でキャンセルすると登録されない ---
   const registerButton = page.getByRole("button", {
-    name: "間違えた単語を復習リストに登録",
+    name: "復習リストに登録",
   });
   await registerButton.click();
   const dialog = page.getByRole("alertdialog");

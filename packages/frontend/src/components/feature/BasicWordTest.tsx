@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRenameOutlineOutlined";
+import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
 import { SectionTitle, Button, JudgeButtons } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useBasicWordSession } from "@/components/feature/BasicWordSessionProvider";
@@ -12,6 +13,16 @@ import { useCreateStudyRecordMutation } from "@/graphql/mutations/createStudyRec
 import { StudyRecordKind } from "@/gql/graphql";
 
 type Word = { id: string; question: string; answer: string };
+
+// 結果画面のボタン内容（アイコン + 文字）を中央寄せする共通 sx。
+// アイコン有無で行ボックスの高さがぶれないよう、登録／一覧に戻るの両ボタンで同じ構造にして
+// 縦位置を揃える（Button は既定サイズだと display:block なので子側で中央寄せを担う）。
+const buttonContentSx = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "6px",
+} as const;
 
 type Props = {
   parentId: string;
@@ -194,17 +205,33 @@ export default function BasicWordTest({ parentId, chapterId, words: initial }: P
             ))}
           </Box>
 
+          {/* 登録（復習ブランドのオレンジ + アイコン）と一覧へ戻る（青系）を横並びに。
+              色とアイコンで役割を区別し、同色 2 連ボタンを避ける。 */}
           <Box
-            sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: "12px" }}
+            sx={{ mt: 2.5, display: "flex", alignItems: "stretch", gap: "12px" }}
           >
             {untaggedWrongWords.length > 0 && (
-              <Button onClick={handleRegisterWrongWords} disabled={registering}>
-                間違えた単語を復習リストに登録
-              </Button>
+              <Box sx={{ flex: 1 }}>
+                <Button onClick={handleRegisterWrongWords} disabled={registering}>
+                  <Box component="span" sx={buttonContentSx}>
+                    <BookmarkAddOutlinedIcon sx={{ fontSize: 18 }} />
+                    復習リストに登録
+                  </Box>
+                </Button>
+              </Box>
             )}
-            <Button href={`/basicWord/${parentId}/${chapterId}/list`}>
-              一覧に戻る
-            </Button>
+            <Box sx={{ flex: 1 }}>
+              <Button
+                href={`/basicWord/${parentId}/${chapterId}/list`}
+                color="#3b82f6"
+                hoverColor="#2563eb"
+              >
+                {/* 登録ボタンと縦位置を揃えるため、素のテキストも同じ flex 中央寄せで包む。 */}
+                <Box component="span" sx={buttonContentSx}>
+                  一覧に戻る
+                </Box>
+              </Button>
+            </Box>
           </Box>
         </Box>
       </Box>

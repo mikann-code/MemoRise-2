@@ -269,7 +269,7 @@ test("誤答は結果画面から復習リストへ一括登録できる（confi
 
   // キャンセルでは登録されず、ボタンも残る
   const registerButton = page.getByRole("button", {
-    name: "間違えた単語を復習リストに登録",
+    name: "復習リストに登録",
   });
   await registerButton.click();
   const dialog = page.getByRole("alertdialog");
