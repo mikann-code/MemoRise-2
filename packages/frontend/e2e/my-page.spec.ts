@@ -32,6 +32,7 @@ async function mockGraphql(page: Page) {
           role: "user",
           streak: 7,
           wordsCount: 12,
+          createdAt: "2026-01-01T00:00:00Z",
           __typename: "User",
         },
       });
@@ -51,6 +52,7 @@ async function mockGraphql(page: Page) {
             role: "user",
             streak: 7,
             wordsCount: 12,
+            createdAt: "2026-01-01T00:00:00Z",
             __typename: "User",
           },
           __typename: "UpdateProfilePayload",
@@ -72,13 +74,16 @@ test("マイページに名前・登録単語数・連続記録・メールが�
   await page.goto("/my-page");
 
   await expect(page.getByRole("heading", { name: "マイページ" })).toBeVisible();
+  // 数値・名前はメイン領域に限定して引く（ヘッダーの「〜さん」や dev のエラーオーバーレイ等、
+  // メイン外の同一テキストとの strict-mode 衝突を避ける）。
+  const main = page.getByRole("main");
   // 名前（カードは「テスト太郎」・ヘッダーは「テスト太郎 さん」なので exact でカードを指す）
-  await expect(page.getByText("テスト太郎", { exact: true })).toBeVisible();
-  await expect(page.getByText("登録単語")).toBeVisible();
-  await expect(page.getByText("連続記録")).toBeVisible();
-  await expect(page.getByText("12")).toBeVisible(); // 登録単語数（me.wordsCount）
-  await expect(page.getByText("7")).toBeVisible(); // 連続記録（streak）
-  await expect(page.getByText("taro@example.com")).toBeVisible();
+  await expect(main.getByText("テスト太郎", { exact: true })).toBeVisible();
+  await expect(main.getByText("登録単語")).toBeVisible();
+  await expect(main.getByText("連続記録")).toBeVisible();
+  await expect(main.getByText("12")).toBeVisible(); // 登録単語数（me.wordsCount）
+  await expect(main.getByText("7")).toBeVisible(); // 連続記録（streak）
+  await expect(main.getByText("taro@example.com")).toBeVisible();
 });
 
 test("プロフィール編集で名前を変更するとカードとヘッダーに反映される", async ({
@@ -99,7 +104,9 @@ test("プロフィール編集で名前を変更するとカードとヘッダ�
   // 更新通知 → マイページへ戻り、名前が即時反映される
   await expect(page.getByText("プロフィールを更新しました")).toBeVisible();
   await expect(page).toHaveURL(/\/my-page$/);
-  await expect(page.getByText("新しい名前", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("main").getByText("新しい名前", { exact: true }),
+  ).toBeVisible();
   // ヘッダーも currentUser の refetch で追随する
   await expect(page.getByText("新しい名前 さん")).toBeVisible();
 
