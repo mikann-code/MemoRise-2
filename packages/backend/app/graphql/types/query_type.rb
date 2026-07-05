@@ -23,6 +23,14 @@ module Types
     field :tagged_words, resolver: Resolvers::TaggedWords,
       description: "復習タグ付きの単語一覧（本人のみ・タグ付けの新しい順・要ログイン）"
 
+    # 学習記録の閲覧（本人のみ・要ログイン）。current_user スコープで他人の記録を除外する。
+    field :study_records, resolver: Resolvers::StudyRecords,
+      description: "学習記録の月別一覧（カレンダー用・study_details 込み・要ログイン）"
+    field :study_records_week, resolver: Resolvers::StudyRecordsWeek,
+      description: "学習記録の週別一覧（startDate から 7 日分・要ログイン）"
+    field :study_records_recent, resolver: Resolvers::StudyRecordsRecent,
+      description: "直近の学習記録一覧（新しい日付順・最大 30 件・要ログイン）"
+
     # 動作確認用フィールド。
     field :health, String, null: false, description: "API 稼働確認用"
 

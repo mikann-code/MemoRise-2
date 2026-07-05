@@ -337,6 +337,36 @@ type Query {
   publicWordbooks: [Wordbook!]!
 
   """
+  学習記録の月別一覧（カレンダー用・study_details 込み・要ログイン）
+  """
+  studyRecords(
+    """
+    対象の月（1〜12）
+    """
+    month: Int!
+
+    """
+    対象の年（例 2026）
+    """
+    year: Int!
+  ): [StudyRecord!]!
+
+  """
+  直近の学習記録一覧（新しい日付順・最大 30 件・要ログイン）
+  """
+  studyRecordsRecent: [StudyRecord!]!
+
+  """
+  学習記録の週別一覧（startDate から 7 日分・要ログイン）
+  """
+  studyRecordsWeek(
+    """
+    週の開始日（この日を含む 7 日分を返す）
+    """
+    startDate: ISO8601Date!
+  ): [StudyRecord!]!
+
+  """
   復習タグ付きの単語一覧（本人のみ・タグ付けの新しい順・要ログイン）
   """
   taggedWords: [Word!]!
@@ -360,6 +390,29 @@ type SignUpPayload {
   user: User
 }
 
+type StudyDetail {
+  """
+  正答数
+  """
+  correctCount: Int!
+  id: ID!
+
+  """
+  正答率（%・四捨五入）
+  """
+  rate: Int!
+
+  """
+  学習した単語帳の表示名（復習テストは固定名）
+  """
+  title: String
+
+  """
+  出題数
+  """
+  totalCount: Int!
+}
+
 type StudyRecord {
   id: ID!
 
@@ -368,6 +421,11 @@ type StudyRecord {
   """
   studyCount: Int!
   studyDate: ISO8601Date!
+
+  """
+  その日の個別記録（テストごとの詳細）
+  """
+  studyDetails: [StudyDetail!]!
 }
 
 enum StudyRecordKind {
