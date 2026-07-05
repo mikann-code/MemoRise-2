@@ -9,23 +9,29 @@ import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { SectionTitle, LoadingSpinner, Button } from "@/components/common/ui";
 import { usePublicWordbookQuery } from "@/graphql/queries/publicWordbook";
-import { usePublicWordbookSession } from "@/components/feature/PublicWordbookSessionProvider";
+import { useWordbookProgressesQuery } from "@/graphql/queries/wordbookProgresses";
 
 /**
  * 公式単語帳の親 1 件（教材トップ）。子＝章（Part）を縦に並べ、番号バッジ・進捗バー・解放状態で見せる。
- * v1（memorize）の公式単語帳の教材トップを踏襲。解放/完了は #2 にまだ保存 API が無いため、
- * PublicWordbookSession（クライアント一時状態）から算出する：先頭 Part か「前の Part を完了」で解放。
+ * v1（memorize）の公式単語帳の教材トップを踏襲。解放/完了はバックエンド保存（wordbookProgresses）から
+ * 算出する：進捗レコードが存在する章＝解放済み、completed＝テスト完了。先頭章は取得時にサーバーが
+ * 遅延作成し、章の完了で次章が解放される（completeWordbookProgress）。
  */
 export default function PublicWordbookParentPage() {
   const { parentId } = useParams<{ parentId: string }>();
   const { data, loading, error } = usePublicWordbookQuery({
     variables: { id: parentId },
   });
-  const { completedIds } = usePublicWordbookSession();
+  const { data: progressData, loading: progressLoading } =
+    useWordbookProgressesQuery({ variables: { wordbookId: parentId } });
 
   const wordbook = data?.publicWordbook ?? null;
+  // 章（子単語帳）ID → completed。キーの存在が「解放済み」を表す。
+  const progressByChapterId = new Map(
+    (progressData?.wordbookProgresses ?? []).map((p) => [p.wordbookId, p.completed]),
+  );
 
-  if (loading) {
+  if (loading || progressLoading) {
     return (
       <Box sx={{ position: "relative", minHeight: 160 }}>
         <LoadingSpinner />
@@ -37,7 +43,7 @@ export default function PublicWordbookParentPage() {
     return (
       <Box>
         <Typography component="h2" sx={{ fontSize: 20, mb: 1 }}>
-          😢 教材が見つかりません
+          教材が見つかりません
         </Typography>
         <Typography sx={{ color: "var(--color-font-secondary)", mb: 2 }}>
           この教材の単語データがありません。
@@ -47,18 +53,18 @@ export default function PublicWordbookParentPage() {
           href="/publicWordbooks"
           sx={{ color: "var(--color-primary)" }}
         >
-          ← 一覧へ戻る
+          一覧へ戻る
         </Box>
       </Box>
     );
   }
 
   const children = wordbook.children;
-  // 解放判定：先頭 Part は常に解放。以降は「直前 Part を完了済み」なら解放。
-  const parts = children.map((child, index) => ({
+  // 解放判定：進捗レコードが存在する章＝解放済み（先頭章はサーバーが遅延作成、次章は完了で解放）。
+  const parts = children.map((child) => ({
     ...child,
-    completed: completedIds.has(child.id),
-    unlocked: index === 0 || completedIds.has(children[index - 1].id),
+    completed: progressByChapterId.get(child.id) === true,
+    unlocked: progressByChapterId.has(child.id),
   }));
 
   const completedCount = parts.filter((p) => p.completed).length;

@@ -6,10 +6,10 @@ import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRen
 import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
 import { SectionTitle, Button, JudgeButtons } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
-import { usePublicWordbookSession } from "@/components/feature/PublicWordbookSessionProvider";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
 import { useCreateStudyRecordMutation } from "@/graphql/mutations/createStudyRecord";
+import { useCompleteWordbookProgressMutation } from "@/graphql/mutations/completeWordbookProgress";
 import { StudyRecordKind } from "@/gql/graphql";
 
 type Word = { id: string; question: string; answer: string };
@@ -90,10 +90,10 @@ function ProgressInfo({ current, total, rate }: { current: number; total: number
  * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。
  * 誤答の復習タグは自動追加せず、結果画面の「間違えた単語を復習リストに登録」（confirm あり）で
  * まとめて登録する（自作単語帳の WordbookTest と同じ UX）。復習タグはバックエンド保存
- * （ReviewTagProvider）で自作単語帳と共通の復習単語一覧に載る。章の完了扱い（次 Part 解放）だけ
- * まだ保存 API が無いため PublicWordbookSessionProvider の一時状態を使う。
+ * （ReviewTagProvider）で自作単語帳と共通の復習単語一覧に載る。章の完了扱い（次 Part 解放）も
+ * バックエンド保存（completeWordbookProgress）で永続化する。
  * 完了時は学習記録も保存する（kind = WORDBOOK・章の単語帳 ID を wordbookId に渡す。
- * 記録はベストエフォートで失敗しても結果画面は表示する。二重送信は completedRef で防止）。
+ * 記録・進捗はベストエフォートで失敗しても結果画面は表示する。二重送信は completedRef で防止）。
  */
 export default function PublicWordbookTest({
   parentId,
@@ -107,10 +107,10 @@ export default function PublicWordbookTest({
   const [wrongWords, setWrongWords] = useState<Word[]>([]);
   // 一括登録（mutation → refetch）中の連打で二重送信しないようにする。
   const [registering, setRegistering] = useState(false);
-  const { markCompleted } = usePublicWordbookSession();
   const { isTagged, addTags, toggleTag } = useReviewTags();
   const { confirm, notify } = useSnackbar();
   const [createStudyRecord] = useCreateStudyRecordMutation();
+  const [completeWordbookProgress] = useCompleteWordbookProgressMutation();
   const completedRef = useRef(false);
 
   const total = words.length;
@@ -121,11 +121,13 @@ export default function PublicWordbookTest({
   const currentWord = words[currentIndex];
 
   // 完了時に章を完了扱いにし（次 Part 解放）、学習記録を保存する。多重実行を ref で
-  // 一度きりに抑える。記録はベストエフォート（失敗しても結果画面はそのまま表示する）。
+  // 一度きりに抑える。いずれもベストエフォート（失敗しても結果画面はそのまま表示する）。
   useEffect(() => {
     if (finished && total > 0 && !completedRef.current) {
       completedRef.current = true;
-      markCompleted(chapterId);
+      completeWordbookProgress({
+        variables: { wordbookId: chapterId },
+      }).catch(() => {});
       createStudyRecord({
         variables: {
           kind: StudyRecordKind.Wordbook,
@@ -135,7 +137,14 @@ export default function PublicWordbookTest({
         },
       }).catch(() => {});
     }
-  }, [finished, total, correctCount, chapterId, markCompleted, createStudyRecord]);
+  }, [
+    finished,
+    total,
+    correctCount,
+    chapterId,
+    completeWordbookProgress,
+    createStudyRecord,
+  ]);
 
   const goNext = () => {
     if (currentIndex < total - 1) {

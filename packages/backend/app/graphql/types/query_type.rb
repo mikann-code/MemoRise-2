@@ -23,6 +23,10 @@ module Types
     field :today_word, resolver: Resolvers::TodayWord,
       description: "今日の一問（公式単語からランダム 1 件・要ログイン。公式単語が無ければ null）"
 
+    # 公式単語帳の章の解放状態（本人のみ・要ログイン）。先頭章は取得時に遅延作成する。
+    field :wordbook_progresses, resolver: Resolvers::WordbookProgresses,
+      description: "公式単語帳（親）の章ごとの解放状態（本人のみ・先頭章は遅延作成・要ログイン）"
+
     # 復習タグの閲覧（本人のみ・要ログイン）。current_user スコープで他人のタグを除外する。
     field :tagged_words, resolver: Resolvers::TaggedWords,
       description: "復習タグ付きの単語一覧（本人のみ・タグ付けの新しい順・要ログイン）"

@@ -17,6 +17,8 @@ async function mockGraphql(page: Page) {
   const addTaggedWordCalls: string[] = [];
   // テスト完了時の学習記録（CreateStudyRecord）の呼び出し履歴。
   const createStudyRecordCalls: Record<string, string | number | null>[] = [];
+  // 章の完了（CompleteWordbookProgress）の呼び出し履歴。
+  const completeWordbookProgressCalls: string[] = [];
 
   await page.route("**/graphql", async (route) => {
     const body = route.request().postDataJSON() as {
@@ -68,6 +70,41 @@ async function mockGraphql(page: Page) {
           errors: [],
           studyRecord: null,
           __typename: "CreateStudyRecordPayload",
+        },
+      });
+      return;
+    }
+
+    if (op === "WordbookProgresses") {
+      // 先頭章（id: 10）はサーバーが遅延作成済み＝解放済みで返す。
+      await json({
+        wordbookProgresses: [
+          {
+            id: "p10",
+            wordbookId: "10",
+            completed: false,
+            __typename: "WordbookProgress",
+          },
+        ],
+      });
+      return;
+    }
+
+    if (op === "CompleteWordbookProgress") {
+      completeWordbookProgressCalls.push(String(vars.wordbookId));
+      await json({
+        completeWordbookProgress: {
+          success: true,
+          errors: [],
+          progresses: [
+            {
+              id: "p10",
+              wordbookId: "10",
+              completed: true,
+              __typename: "WordbookProgress",
+            },
+          ],
+          __typename: "CompleteWordbookProgressPayload",
         },
       });
       return;
@@ -170,7 +207,12 @@ async function mockGraphql(page: Page) {
     await json({ me: null });
   });
 
-  return { taggedWords, addTaggedWordCalls, createStudyRecordCalls };
+  return {
+    taggedWords,
+    addTaggedWordCalls,
+    createStudyRecordCalls,
+    completeWordbookProgressCalls,
+  };
 }
 
 test("一覧→教材で Part と進捗が見え、章の単語一覧へ遷移できる（代表導線）", async ({
@@ -205,7 +247,8 @@ test("一覧→教材で Part と進捗が見え、章の単語一覧へ遷移�
 test("単語テストを最後まで解くと結果画面が表示され、学習記録が保存される", async ({
   page,
 }) => {
-  const { createStudyRecordCalls } = await mockGraphql(page);
+  const { createStudyRecordCalls, completeWordbookProgressCalls } =
+    await mockGraphql(page);
 
   await page.goto("/publicWordbooks/1/10/test");
 
@@ -250,6 +293,14 @@ test("単語テストを最後まで解くと結果画面が表示され、学�
     correctCount: 2,
     wordbookId: "10",
   });
+
+  // 章の完了（次 Part 解放）もバックエンドへ 1 回だけ届く。
+  await expect
+    .poll(() => completeWordbookProgressCalls.length, {
+      message: "CompleteWordbookProgress の呼び出し回数",
+    })
+    .toBe(1);
+  expect(completeWordbookProgressCalls[0]).toBe("10");
 });
 
 test("誤答は結果画面から復習リストへ一括登録できる（confirm あり・バックエンド保存）", async ({
@@ -297,6 +348,154 @@ test("誤答は結果画面から復習リストへ一括登録できる（confi
       message: "AddTaggedWord の呼び出し",
     })
     .toEqual(["100", "101"]);
+});
+
+test("章のテストを完了すると次の Part が解放される（API 接続・2 章）", async ({
+  page,
+}) => {
+  // 進捗はバックエンド保存。CompleteWordbookProgress で章10 を完了し章11 を解放する状態遷移を
+  // ステートフルなモックで再現する（page.route はページ遷移をまたいでも保持される）。
+  const progresses = [{ id: "p10", wordbookId: "10", completed: false }];
+  const completeCalls: string[] = [];
+  const children = [
+    { id: "10", title: "TOEIC 第1章", part: "1", wordsCount: 2 },
+    { id: "11", title: "TOEIC 第2章", part: "2", wordsCount: 2 },
+  ];
+
+  await page.route("**/graphql", async (route) => {
+    const body = route.request().postDataJSON() as {
+      operationName?: string;
+      variables?: Record<string, string | number | null>;
+    };
+    const op = body?.operationName;
+    const vars = body?.variables ?? {};
+    const json = (data: unknown) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data }),
+      });
+
+    if (op === "Me") {
+      await json({
+        me: {
+          id: "1",
+          name: "テスト太郎",
+          email: "taro@example.com",
+          role: "user",
+          streak: 0,
+          wordsCount: 0,
+          __typename: "User",
+        },
+      });
+      return;
+    }
+    if (op === "TaggedWords") {
+      await json({ taggedWords: [] });
+      return;
+    }
+    if (op === "PublicWordbook") {
+      await json({
+        publicWordbook: {
+          id: "1",
+          title: "TOEIC",
+          label: "toeic",
+          level: "中級",
+          children: children.map((c) => ({ ...c, __typename: "Wordbook" })),
+          __typename: "Wordbook",
+        },
+      });
+      return;
+    }
+    if (op === "WordbookProgresses") {
+      await json({
+        wordbookProgresses: progresses.map((p) => ({
+          ...p,
+          __typename: "WordbookProgress",
+        })),
+      });
+      return;
+    }
+    if (op === "PublicWordbookChapters") {
+      await json({
+        publicWordbook: {
+          id: "1",
+          title: "TOEIC",
+          children: children.map((c) => ({
+            ...c,
+            description: "テスト用の章です。",
+            words: WORDS,
+            __typename: "Wordbook",
+          })),
+          __typename: "Wordbook",
+        },
+      });
+      return;
+    }
+    if (op === "CreateStudyRecord") {
+      await json({
+        createStudyRecord: {
+          success: true,
+          errors: [],
+          studyRecord: null,
+          __typename: "CreateStudyRecordPayload",
+        },
+      });
+      return;
+    }
+    if (op === "CompleteWordbookProgress") {
+      completeCalls.push(String(vars.wordbookId));
+      const target = progresses.find(
+        (p) => p.wordbookId === String(vars.wordbookId),
+      );
+      if (target) target.completed = true;
+      if (!progresses.some((p) => p.wordbookId === "11")) {
+        progresses.push({ id: "p11", wordbookId: "11", completed: false });
+      }
+      await json({
+        completeWordbookProgress: {
+          success: true,
+          errors: [],
+          progresses: progresses.map((p) => ({
+            ...p,
+            __typename: "WordbookProgress",
+          })),
+          __typename: "CompleteWordbookProgressPayload",
+        },
+      });
+      return;
+    }
+    await json({ me: null });
+  });
+
+  // 教材トップ：先頭章だけ解放、2 章目はロック表示。
+  await page.goto("/publicWordbooks/1");
+  await expect(page.getByText("進捗：0 / 2 Part 完了")).toBeVisible();
+  await expect(page.getByText("第1章")).toBeVisible();
+  await expect(
+    page.getByText("この Part はまだ解放されていません"),
+  ).toBeVisible();
+
+  // 1 章目のテストを最後まで解く（完了で章解放 API が飛ぶ）。
+  await page.getByRole("link", { name: "今すぐはじめる" }).click();
+  await expect(page).toHaveURL(/\/publicWordbooks\/1\/10\/test$/);
+  for (let i = 0; i < 2; i++) {
+    await page.getByRole("button", { name: "答えを見る" }).click();
+    await page.getByRole("button", { name: "正解", exact: true }).click();
+  }
+  await expect(page.getByRole("heading", { name: "テスト結果" })).toBeVisible();
+  await expect
+    .poll(() => completeCalls, { message: "CompleteWordbookProgress の呼び出し" })
+    .toEqual(["10"]);
+
+  // 教材トップに戻ると 2 章目が解放されている（ロック表示が消え、単語一覧リンクが出る）。
+  await page.goto("/publicWordbooks/1");
+  await expect(page.getByText("進捗：1 / 2 Part 完了")).toBeVisible();
+  await expect(
+    page.getByText("この Part はまだ解放されていません"),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "第2章の単語一覧" }),
+  ).toBeVisible();
 });
 
 test("未知ラベルの公式単語帳は「未分類」に出て一覧から消えない", async ({

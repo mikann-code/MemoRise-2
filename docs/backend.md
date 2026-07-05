@@ -114,17 +114,22 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 
 **実装状況**（`schema.graphql` が正）：
 
-- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `todayWord` / `taggedWords` / `studyRecords(year, month)` / `studyRecordsWeek(startDate)` / `studyRecordsRecent`
+- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `todayWord` / `totalWords` / `taggedWords` / `wordbookProgresses(wordbookId)` / `studyRecords(year, month)` / `studyRecordsWeek(startDate)` / `studyRecordsRecent`
   - `studyRecords` 系は current_user スコープで `study_details` 込みを返す（月別 = カレンダー用・日付昇順 / 週別 = startDate から 7 日分・週初めの月曜補正はフロント側 / 直近 = 新しい日付順・最大 30 件）。不正な年月は `BAD_REQUEST` を raise。
   - `todayWord` は公式単語帳の単語（論理削除済み単語帳を除く）からランダム 1 件を返す軽実装。公式単語が 0 件なら null（フロントは `fallbackWords` に切り替え）。要ログイン。
-- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `createStudyRecord`
+  - `totalWords` は登録単語数（`users.words_count` の counter_cache）を返す（本人スコープ・要ログイン）。マイページの表示に使う。
+  - `wordbookProgresses(wordbookId)` は公式単語帳（親）の章ごとの解放状態（`WordbookProgress { id, wordbookId, completed }`）を返す。解放は進捗レコードの存在で表現し、取得時に先頭章の進捗を遅延作成（lazy initialization）する。公式でない/存在しない親は空配列。要ログイン。
+- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `createStudyRecord` / `updateProfile` / `completeWordbookProgress`
   - `createStudyRecord` は「日次サマリーの増分更新 + 詳細追加 + streak 更新」を 1 トランザクションで行う（§3）。
     学習日はサーバー日付（JST）。同一テストの二重送信防止はフロントの `hasPostedRef` が担う（[frontend.md](./frontend.md) §5）。
     記録の種類は GraphQL enum `StudyRecordKind`（`WORDBOOK` = 単語帳のテスト・wordbookId 必須 /
     `REVIEW` = 復習専用テスト・wordbookId 不可）で明示し、組み合わせ不正は errors で返す（消去法で復習扱いにしない）。
   - `addTaggedWord` / `removeTaggedWord` の対象は「本人の単語 or 公式単語帳の単語」（論理削除済み単語帳を除く）。
-- 未実装：`totalWords` / `wordbookProgresses`、`updateProfile` / `studyWordbook` / `completeWordbookProgress`、`adminUsers` / `adminStats` / 管理者の単語 CRUD / `importCsv`
-  （テーブル自体は §2 のとおり作成済み。フロントは未実装分をクライアント一時状態でフォールバック中 → [frontend.md](./frontend.md) §3）
+  - `updateProfile` は本人のプロフィール編集（名前は必須・パスワードは変更時のみ）。パスワード変更時は確認用との一致を検証する。
+  - `completeWordbookProgress(wordbookId)` は公式単語帳の章を完了（`completed: true`）し、`order_index` 昇順で次章を `find_or_create_by!` で解放する。完了と解放を同一トランザクションで処理（§3）。
+- 未実装：`studyWordbook`（`last_studied` 更新）、`adminUsers` / `adminStats` / 管理者の単語 CRUD / `importCsv`
+  - `studyWordbook` は `last_studied` を更新する任意 Mutation。現状 `last_studied` を参照する導線・受け入れ条件が無いため見送り（必要になれば `createStudyRecord` への統合含め別途）。
+  （未実装のテーブルは §2 のとおり作成済み。フロントは未実装分をクライアント一時状態でフォールバック中 → [frontend.md](./frontend.md) §3）
 
 **Mutation の返却規約**：例外を投げず `{ success, errors: [{ field, message }] }` 形式の Payload を返す。
 認可失敗（本人以外・非管理者）も errors に載せる。**クエリの失敗は raise**（従来どおり GraphQL エラー）。
