@@ -114,15 +114,16 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 
 **実装状況**（`schema.graphql` が正）：
 
-- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `taggedWords` / `studyRecords(year, month)` / `studyRecordsWeek(startDate)` / `studyRecordsRecent`
+- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `todayWord` / `taggedWords` / `studyRecords(year, month)` / `studyRecordsWeek(startDate)` / `studyRecordsRecent`
   - `studyRecords` 系は current_user スコープで `study_details` 込みを返す（月別 = カレンダー用・日付昇順 / 週別 = startDate から 7 日分・週初めの月曜補正はフロント側 / 直近 = 新しい日付順・最大 30 件）。不正な年月は `BAD_REQUEST` を raise。
+  - `todayWord` は公式単語帳の単語（論理削除済み単語帳を除く）からランダム 1 件を返す軽実装。公式単語が 0 件なら null（フロントは `fallbackWords` に切り替え）。要ログイン。
 - 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `createStudyRecord`
   - `createStudyRecord` は「日次サマリーの増分更新 + 詳細追加 + streak 更新」を 1 トランザクションで行う（§3）。
     学習日はサーバー日付（JST）。同一テストの二重送信防止はフロントの `hasPostedRef` が担う（[frontend.md](./frontend.md) §5）。
     記録の種類は GraphQL enum `StudyRecordKind`（`WORDBOOK` = 単語帳のテスト・wordbookId 必須 /
     `REVIEW` = 復習専用テスト・wordbookId 不可）で明示し、組み合わせ不正は errors で返す（消去法で復習扱いにしない）。
   - `addTaggedWord` / `removeTaggedWord` の対象は「本人の単語 or 公式単語帳の単語」（論理削除済み単語帳を除く）。
-- 未実装：`todayWord` / `totalWords` / `wordbookProgresses`、`updateProfile` / `studyWordbook` / `completeWordbookProgress`、`adminUsers` / `adminStats` / 管理者の単語 CRUD / `importCsv`
+- 未実装：`totalWords` / `wordbookProgresses`、`updateProfile` / `studyWordbook` / `completeWordbookProgress`、`adminUsers` / `adminStats` / 管理者の単語 CRUD / `importCsv`
   （テーブル自体は §2 のとおり作成済み。フロントは未実装分をクライアント一時状態でフォールバック中 → [frontend.md](./frontend.md) §3）
 
 **Mutation の返却規約**：例外を投げず `{ success, errors: [{ field, message }] }` 形式の Payload を返す。
