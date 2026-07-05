@@ -57,6 +57,11 @@ async function mockGraphql(page: Page) {
       return;
     }
 
+    if (op === "TaggedWords") {
+      await json({ taggedWords: [] });
+      return;
+    }
+
     if (op === "MyWordbooks") {
       await json({
         myWordbooks: wordbooks.map(({ words: _words, ...rest }) => rest),

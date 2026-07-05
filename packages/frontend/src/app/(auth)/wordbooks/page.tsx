@@ -10,14 +10,14 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { SectionTitle, LoadingSpinner, Button } from "@/components/common/ui";
 import { useMyWordbooksQuery } from "@/graphql/queries/myWordbooks";
-import { useWordbookSession } from "@/components/feature/WordbookSessionProvider";
+import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import dayjs from "@/lib/dayjs";
 
 /**
  * 自作単語帳の一覧（v1 の /wordbooks を忠実に再現）。
  * ヘッダ右にアクション 2 つ（復習単語 / ＋ 新しい単語帳）、
  * 下に単語帳カード（左アクセントバー・語数・最終学習・ラベルバッジ・右下矢印）を並べる。
- * 復習単語のカウントはクライアント一時状態（WordbookSessionProvider・保存なし）。
+ * 復習単語のカウントはバックエンド保存の実数（taggedWords クエリ）。
  */
 
 const cardSx = {
@@ -45,7 +45,7 @@ const statSx = {
 
 export default function WordbooksPage() {
   const { data, loading, error } = useMyWordbooksQuery();
-  const { taggedIds } = useWordbookSession();
+  const { taggedWords } = useReviewTags();
   const wordbooks = data?.myWordbooks ?? [];
 
   if (loading && !data) {
@@ -98,7 +98,7 @@ export default function WordbooksPage() {
             hoverColor="#2563eb"
           >
             <StarIcon sx={{ fontSize: 16 }} />
-            復習単語 ( {taggedIds.size} )
+            復習単語 ( {taggedWords.length} )
           </Button>
 
           <Button href="/wordbooks/new" size="compact">

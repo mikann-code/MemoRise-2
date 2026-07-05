@@ -11,10 +11,10 @@ App Router の Route Group `(xxx)` で、URL に出さずに権限ごとに空�
 | グループ | 認証 | 画面（実装済み） |
 | --- | --- | --- |
 | `(public)` | 不要 | `/login`、`/signup` |
-| `(auth)` | 必須 | `/`（ホーム）、`/basicWordList`、`/basicWord/[parentId]`、`/basicWord/[parentId]/[childrenId]/list`、`/basicWord/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test` |
+| `(auth)` | 必須 | `/`（ホーム）、`/basicWordList`、`/basicWord/[parentId]`、`/basicWord/[parentId]/[childrenId]/list`、`/basicWord/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`（復習専用テスト） |
 | `(admin)` | 管理者 | `/admin-login`、`/admin` |
 
-未実装（今後追加予定）：`/wordbooks/review`、`/study-records`、`/my-page`、`/my-page/edit`、`/admin/users`、`/admin/wordbooks` 配下。
+未実装（今後追加予定）：`/study-records`、`/my-page`、`/my-page/edit`、`/admin/users`、`/admin/wordbooks` 配下。
 
 - 親子単語帳は `/[parentId]/[childrenId]` の二段ルーティングで「TOEIC > Day 1」のような体系を表現。
 - `(auth)` は `AuthProvider`（`me` クエリ）でガードし、未認証は `/login` へリダイレクト。`(admin)` は `AdminAuthProvider`（`adminMe`）で同様にガードする。
@@ -39,7 +39,7 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | `common/ui/` | 汎用パーツ | Button / ButtonSecondary / FloatingInput / JudgeButtons / LoadingSpinner / SectionTitle |
 | `common/card/` | カード | WordCard / ErrorCard |
 | `layout/` | レイアウト | Layout（共通シェル）/ Header / Footer / FormLayout / WordbookListLayout |
-| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / BasicWordSessionProvider / WordbookSessionProvider / BasicWordTest / WordbookTest |
+| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / BasicWordSessionProvider / ReviewTagProvider / BasicWordTest / WordbookTest |
 | `home/` | トップ専用 | DailyWord / BasicWord / CraftWord / WeeklyStreakCard |
 
 設計指針：
@@ -51,7 +51,11 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 - **状態の hoisting**：葉コンポーネント（WordCard）は状態を持たず props で受け取り、テスト全体の状態は `BasicWordTest` に集約。
 - **JudgeButtons の disabled 連動**：「答えを見る」まで正誤判定不可（UI 制約でチートを防止）。
 - Button / FloatingInput 等は **MUI ベースの薄い自作ラッパー**として `common/ui/` に置き、見た目は theme / sx で v1 に寄せる。
-- **BE 未実装の機能はクライアント一時状態で先行再現**する：復習タグ・章の進捗は `BasicWordSessionProvider` / `WordbookSessionProvider`（Route Group の layout に mount、リロードで初期化）で UI だけ v1 を再現している。
+- **復習タグはバックエンド保存**（#10）：`ReviewTagProvider`（wordbooks/layout.tsx に mount）が
+  `taggedWords` クエリを 1 箇所で引き、付け外し（mutation → refetch）と件数バッジを配下ページへ配る。
+  ホームのバッジ（DailyWord）は Provider の外なので同じクエリを直接引く（Apollo キャッシュ共有）。
+- **BE 未実装の機能はクライアント一時状態で先行再現**する：basicWord 配下の復習タグ・章の進捗は
+  `BasicWordSessionProvider`（layout に mount、リロードで初期化）で UI だけ v1 を再現している（#13 で接続予定）。
 
 ## 4. 主要画面とデータ
 
@@ -74,8 +78,11 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 3. テスト終了（`currentIndex >= total`）を `useEffect` で検知し、`createStudyRecord`（履歴）と `completeWordbookProgress`（進捗）を発火。
 4. **冪等性**：`hasPostedRef = useRef(false)` で Strict Mode の二重実行・二重送信を防止。
 
-現状の実装（`/basicWord/.../test` = BasicWordTest、`/wordbooks/[id]/test` = WordbookTest）は、
-記録・タグの保存 API が未実装のため、2〜3 の保存部分をセッション一時状態で代替している（→ §3、#10 で対応）。
+実装状況：`/wordbooks/[id]/test`（WordbookTest）は #10 で 2〜4 を接続済み
+（`completeWordbookProgress` は章の解放が対象のため自作単語帳では発火しない）。
+`/wordbooks/review`（復習専用テスト）は復習タグ付き単語を出題し、記録は `kind: REVIEW`（単語帳なし）で保存する
+（通常のテストは `kind: WORDBOOK` + wordbookId）。
+`/basicWord/.../test`（BasicWordTest）は保存 API 未接続のままセッション一時状態で代替している（→ §3、#13 で対応）。
 
 ## 6. 認証・通信（v1 → v2）
 

@@ -91,6 +91,11 @@ Issue → ブランチ `<種別>/issue-<番号>`（例 `feature/issue-8`）→ �
 
 ## 実装規約
 
+- **認可チェックは各 API（resolver / mutation）の冒頭で必ず行う**：一般ユーザーの操作は
+  `resolve` の先頭で認証をガードしてから本処理に入る（クエリは `require_user!` で raise、
+  mutation は `return failure(unauthorized_errors) unless current_user`）。対象リソースの
+  認可は「本人のものだけを current_user スコープで引き、他人・対象外・論理削除済みは
+  not found として扱う」（存在を教えない）。管理者専用は同様に `current_admin` でガードする。
 - **GraphQL クエリは current_user スコープ**：単語帳等は `user_id` 引数でなく context の
   current_user から引く。クエリの失敗は raise。
 - **mutation は success/errors 方式**：例外でなく `{ success, errors: [{ field, message }] }`

@@ -53,6 +53,37 @@ async function mockGraphql(page: Page) {
       return;
     }
 
+    // 復習タグ・学習記録（#10）。この spec の主目的ではないので最小の成功応答を返す
+    // （導線の検証は wordbook-review.spec.ts が担う）。
+    if (op === "TaggedWords") {
+      await json({ taggedWords: [] });
+      return;
+    }
+
+    if (op === "AddTaggedWord") {
+      await json({
+        addTaggedWord: {
+          success: true,
+          errors: [],
+          word: null,
+          __typename: "AddTaggedWordPayload",
+        },
+      });
+      return;
+    }
+
+    if (op === "CreateStudyRecord") {
+      await json({
+        createStudyRecord: {
+          success: true,
+          errors: [],
+          studyRecord: null,
+          __typename: "CreateStudyRecordPayload",
+        },
+      });
+      return;
+    }
+
     await json({ me: null });
   });
 }
