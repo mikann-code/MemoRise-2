@@ -11,13 +11,24 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { Button, FloatingInput, LoadingSpinner } from "@/components/common/ui";
+import {
+  Button,
+  FloatingInput,
+  FormError,
+  LoadingSpinner,
+} from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useAdminWordbookQuery } from "@/graphql/queries/adminWordbook";
 import { useCreateAdminWordbookMutation } from "@/graphql/mutations/createAdminWordbook";
 import { useCreateAdminWordMutation } from "@/graphql/mutations/createAdminWord";
 import { useUpdateAdminWordMutation } from "@/graphql/mutations/updateAdminWord";
 import { useDeleteAdminWordMutation } from "@/graphql/mutations/deleteAdminWord";
+import { useSnackbar } from "@/components/feature/SnackbarProvider";
+import {
+  pickFieldError,
+  pickSystemError,
+  type FieldError,
+} from "@/lib/forms/fieldErrors";
 import AdminPageHeader from "../../_components/AdminPageHeader";
 
 /**
@@ -27,16 +38,15 @@ import AdminPageHeader from "../../_components/AdminPageHeader";
  * （バックエンドの createAdminWord / importCsv も教材への登録を拒否する）。
  */
 
-type FieldError = { field: string; message: string };
-const findFieldError = (errors: FieldError[], field: string) =>
-  errors.find((e) => e.field === field)?.message;
-const findSystemError = (errors: FieldError[]) =>
-  errors.find((e) => !["question", "answer", "title", "orderIndex"].includes(e.field))?.message;
+// 各フォームの入力欄に対応する field（章追加の title・単語の question/answer・並び順）。
+// これ以外（system / id 等）は systemError にまとめる。章・単語追加・単語編集で共通に使う。
+const KNOWN_FIELDS = ["question", "answer", "title", "orderIndex"];
 
 type Props = { params: Promise<{ id: string }> };
 
 export default function AdminWordbookDetailPage({ params }: Props) {
   const { id } = use(params);
+  const { notify } = useSnackbar();
 
   const { data, loading, error, refetch } = useAdminWordbookQuery({
     variables: { id },
@@ -199,15 +209,18 @@ export default function AdminWordbookDetailPage({ params }: Props) {
 
   const handleDeleteWord = async (wordId: string) => {
     try {
-      await deleteWord({ variables: { id: wordId } });
+      const { data: result } = await deleteWord({ variables: { id: wordId } });
+      if (!result?.deleteAdminWord?.success) notify("削除に失敗しました");
+    } catch {
+      notify("削除に失敗しました");
     } finally {
       await refetch();
     }
   };
 
-  const chSystemError = findSystemError(chErrors);
-  const wordSystemError = findSystemError(wordErrors);
-  const editSystemError = findSystemError(editErrors);
+  const chSystemError = pickSystemError(chErrors, KNOWN_FIELDS);
+  const wordSystemError = pickSystemError(wordErrors, KNOWN_FIELDS);
+  const editSystemError = pickSystemError(editErrors, KNOWN_FIELDS);
 
   return (
     <Container maxWidth="sm" sx={{ py: 6 }}>
@@ -300,13 +313,9 @@ export default function AdminWordbookDetailPage({ params }: Props) {
               onChange={(e) => setChTitle(e.target.value)}
               disabled={addingChapter}
               labelIcon={<MenuBookOutlinedIcon />}
-              error={findFieldError(chErrors, "title")}
+              error={pickFieldError(chErrors, "title")}
             />
-            {chSystemError && (
-              <Typography sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}>
-                {chSystemError}
-              </Typography>
-            )}
+            <FormError message={chSystemError} />
             <Button type="submit" disabled={addingChapter}>
               {addingChapter ? "追加中..." : "章を追加"}
             </Button>
@@ -357,7 +366,7 @@ export default function AdminWordbookDetailPage({ params }: Props) {
               onChange={(e) => setQuestion(e.target.value)}
               disabled={addingWord}
               labelIcon={<HelpOutlineIcon />}
-              error={findFieldError(wordErrors, "question")}
+              error={pickFieldError(wordErrors, "question")}
             />
             <FloatingInput
               id="answer"
@@ -366,13 +375,9 @@ export default function AdminWordbookDetailPage({ params }: Props) {
               onChange={(e) => setAnswer(e.target.value)}
               disabled={addingWord}
               labelIcon={<LightbulbOutlinedIcon />}
-              error={findFieldError(wordErrors, "answer")}
+              error={pickFieldError(wordErrors, "answer")}
             />
-            {wordSystemError && (
-              <Typography sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}>
-                {wordSystemError}
-              </Typography>
-            )}
+            <FormError message={wordSystemError} />
             <Button type="submit" disabled={addingWord}>
               {addingWord ? "登録中..." : "単語を登録"}
             </Button>
@@ -400,7 +405,7 @@ export default function AdminWordbookDetailPage({ params }: Props) {
                     onChange={(e) => setEditQuestion(e.target.value)}
                     disabled={updatingWord}
                     labelIcon={<HelpOutlineIcon />}
-                    error={findFieldError(editErrors, "question")}
+                    error={pickFieldError(editErrors, "question")}
                   />
                   <FloatingInput
                     id={`edit-answer-${word.id}`}
@@ -409,13 +414,9 @@ export default function AdminWordbookDetailPage({ params }: Props) {
                     onChange={(e) => setEditAnswer(e.target.value)}
                     disabled={updatingWord}
                     labelIcon={<LightbulbOutlinedIcon />}
-                    error={findFieldError(editErrors, "answer")}
+                    error={pickFieldError(editErrors, "answer")}
                   />
-                  {editSystemError && (
-                    <Typography sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}>
-                      {editSystemError}
-                    </Typography>
-                  )}
+                  <FormError message={editSystemError} />
                   <Box sx={{ display: "flex", gap: "10px" }}>
                     <Box sx={{ flex: 1 }}>
                       <Button type="submit" disabled={updatingWord}>

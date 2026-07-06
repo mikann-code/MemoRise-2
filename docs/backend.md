@@ -115,11 +115,11 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 
 **実装状況**（`schema.graphql` が正）：
 
-- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `todayWord` / `totalWords` / `taggedWords` / `wordbookProgresses(wordbookId)` / `studyRecords(year, month)` / `studyRecordsWeek(startDate)` / `studyRecordsRecent` / `adminWordbooks` / `adminWordbook(id)` / `adminUsers(page, perPage, keyword, sortBy, sortOrder)` / `adminStats`
+- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `todayWord` / `taggedWords` / `wordbookProgresses(wordbookId)` / `studyRecords(year, month)` / `studyRecordsWeek(startDate)` / `studyRecordsRecent` / `adminWordbooks` / `adminWordbook(id)` / `adminUsers(page, perPage, keyword, sortBy, sortOrder)` / `adminStats`
   - `adminWordbooks` は公式単語帳の教材（トップレベル・論理削除を除く）を order_index 昇順で返す。`adminWordbook(id)` は教材・章どちらの id でも引け、`children`（章）/ `words`（単語）まで辿れる管理用取得。`adminUsers` は全ユーザーをキーワード検索（`keyword`：name / email の部分一致・大小無視）・並び替え（`sortBy`：`CREATED_AT` / `WORDS_COUNT`、`sortOrder`：`ASC` / `DESC`、既定は登録日の降順）・ページング（`page` 1 始まり、`perPage` は 1〜100 にクランプ）して `AdminUsersResult { nodes, totalCount }` を返す（`totalCount` は絞り込み後・ページ分割前の総数）。`adminStats` はユーザー数・単語数・公式/自作単語帳数の集計。いずれも `require_admin!` でガード（失敗は FORBIDDEN を raise）。
   - `studyRecords` 系は current_user スコープで `study_details` 込みを返す（月別 = カレンダー用・日付昇順 / 週別 = startDate から 7 日分・週初めの月曜補正はフロント側 / 直近 = 新しい日付順・最大 30 件）。不正な年月は `BAD_REQUEST` を raise。
   - `todayWord` は公式単語帳の単語（論理削除済み単語帳を除く）からランダム 1 件を返す軽実装。公式単語が 0 件なら null（フロントは `fallbackWords` に切り替え）。要ログイン。
-  - `totalWords` は登録単語数（`users.words_count` の counter_cache）を返す（本人スコープ・要ログイン）。マイページの表示に使う。
+  - 登録単語数は `me { wordsCount }`（`UserType` の `words_count` counter_cache フィールド）で取得する。`me` で取れるため専用の `totalWords` クエリは設けない。マイページの表示に使う。
   - `wordbookProgresses(wordbookId)` は公式単語帳（親）の章ごとの解放状態（`WordbookProgress { id, wordbookId, completed }`）を返す。解放は進捗レコードの存在で表現し、取得時に先頭章の進捗を遅延作成（lazy initialization）する。公式でない/存在しない親は空配列。要ログイン。
 - 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`createAdminWord` / `updateAdminWord` / `deleteAdminWord`、`importCsv`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `createStudyRecord` / `updateProfile` / `completeWordbookProgress`
   - `createAdminWordbook` は `parentId` なしで教材（トップレベル）、ありで章（子）を作成する。単語は章にのみ登録できる設計のため、教材の作成時は既定の章「第1章」（order_index `1`・label / level は親を引き継ぐ）を同一トランザクションで 1 つ自動作成し、章ゼロの教材を作らない。章番号カラムは持たず、表示番号「第○章」はフロントが order_index 昇順の並び位置から導出する。章（子）は `orderIndex` 省略時に「同じ親の最大 order_index + 1」を末尾へ自動採番する（`order_index` は progress の章解放順と直結するため、管理 UI では数値を編集させず作成順に並べる）。
@@ -143,7 +143,7 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 | --- | --- |
 | `GET /me` | `me` |
 | `GET /today_word` | `todayWord` |
-| `GET /stats/total_words` | `totalWords` |
+| `GET /stats/total_words` | `me { wordsCount }`（専用クエリは設けず `User` 型のフィールドで取得） |
 | `GET /wordbooks` `/wordbooks/:uuid` | `myWordbooks` / `myWordbook(id)`（自作のみ・本人スコープ） |
 | `GET /wordbooks/:uuid/words` | `myWordbook.words` |
 | `GET /public_wordbooks` `:uuid/children` `:uuid/words` | `publicWordbooks` / `publicWordbook(uuid){ children, words }` |

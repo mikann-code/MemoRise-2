@@ -26,7 +26,7 @@ export default function PublicWordbookListChapterPage() {
     variables: { id: parentId },
   });
   const { isTagged, toggleTag } = useReviewTags();
-  const { confirm } = useSnackbar();
+  const { confirm, notify } = useSnackbar();
 
   const chapter =
     data?.publicWordbook?.children.find((c) => c.id === childrenId) ?? null;
@@ -71,8 +71,7 @@ export default function PublicWordbookListChapterPage() {
       ? "この単語を復習リストの登録から外しますか？"
       : "この単語を復習リストに登録しますか？";
     if (!(await confirm(message))) return;
-    // 失敗時は表示が変わらないだけなので握りつぶす（再操作できる）。
-    await toggleTag(wordId).catch(() => {});
+    await toggleTag(wordId).catch(() => notify("復習リストの更新に失敗しました"));
   };
 
   return (

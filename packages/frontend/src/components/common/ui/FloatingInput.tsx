@@ -8,9 +8,18 @@ import { styled } from "@mui/material/styles";
  * placeholder=" " + :placeholder-shown / :focus でラベルを上に浮かせる。
  * autoComplete は既定 off（テスト中の意図しない補完を防止）。error でエラー表示。
  */
+// 外側。欄間・エラー文の余白を padding で確保する。ラベル／アイコンの位置基準は
+// 内側の Field（高さ = input）なので、ここに padding を足しても中央寄せには影響しない。
+// エラー文（絶対配置）はこの padding 領域に収まり、2 行に折り返しても次の欄へ重ならない。
 const Wrapper = styled("div")({
+  paddingBottom: 24,
+  "&.has-error": { paddingBottom: 36 },
+});
+
+// 内側。ラベル／アイコン／エラー文の位置基準。in-flow の子は input だけなので
+// 高さは常に input と一致し、top:50% の中央寄せがエラー有無で崩れない。
+const Field = styled("div")({
   position: "relative",
-  marginBottom: 22,
   "& input": {
     width: "100%",
     padding: "10px 12px",
@@ -57,13 +66,17 @@ const Wrapper = styled("div")({
     display: "flex",
     color: "var(--color-font-secondary)",
   },
+  // エラー文は絶対配置で input の直下に重ねる。Field の高さは input のままなので
+  // ラベル／アイコンの中央寄せに影響せず、下の余白（Wrapper の padding）に収まる。
   "& .error-msg": {
     position: "absolute",
     top: "100%",
     left: 4,
     marginTop: 4,
     fontSize: 12,
+    lineHeight: 1.4,
     color: "var(--color-error)",
+    wordBreak: "break-word",
   },
 });
 
@@ -91,25 +104,32 @@ export default function FloatingInput({
   labelIcon,
 }: Props) {
   return (
-    <Wrapper>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        placeholder=" "
-        autoComplete="off"
-        aria-invalid={Boolean(error)}
-        className={error ? "error" : undefined}
-        style={icon ? { paddingRight: 40 } : undefined}
-      />
-      <label htmlFor={id}>
-        {labelIcon}
-        {label}
-      </label>
-      {icon && <span className="icon">{icon}</span>}
-      {error && <span className="error-msg">{error}</span>}
+    <Wrapper className={error ? "has-error" : undefined}>
+      <Field>
+        <input
+          id={id}
+          type={type}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          placeholder=" "
+          autoComplete="off"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={error ? "error" : undefined}
+          style={icon ? { paddingRight: 40 } : undefined}
+        />
+        <label htmlFor={id}>
+          {labelIcon}
+          {label}
+        </label>
+        {icon && <span className="icon">{icon}</span>}
+        {error && (
+          <span id={`${id}-error`} className="error-msg">
+            {error}
+          </span>
+        )}
+      </Field>
     </Wrapper>
   );
 }

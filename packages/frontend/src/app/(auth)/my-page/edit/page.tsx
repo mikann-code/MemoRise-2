@@ -9,10 +9,16 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { FormLayout } from "@/components/layout";
-import { SectionTitle, Button, FloatingInput } from "@/components/common/ui";
+import {
+  SectionTitle,
+  Button,
+  FloatingInput,
+  FormError,
+} from "@/components/common/ui";
 import { useCurrentUser } from "@/lib/auth/authContext";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
 import { useUpdateProfileMutation } from "@/graphql/mutations/updateProfile";
+import { useFieldErrors } from "@/lib/forms/fieldErrors";
 
 /**
  * プロフィール編集（v1 の /my-page/edit を踏襲）。名前は必須、パスワードは変更するときだけ入力する。
@@ -20,8 +26,6 @@ import { useUpdateProfileMutation } from "@/graphql/mutations/updateProfile";
  * 更新成功後は currentUser を refetch して Header 等の表示（名前）を即時に追随させ、マイページへ戻る。
  * サーバーの {success, errors} は field 単位で表示する（errors 配列を fieldError で引く）。
  */
-
-type FieldError = { field: string; message: string };
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -32,14 +36,11 @@ export default function EditProfilePage() {
   const [name, setName] = useState(currentUser.name);
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [errors, setErrors] = useState<FieldError[]>([]);
-
-  const fieldError = (field: string) =>
-    errors.find((e) => e.field === field)?.message;
-  // 入力欄に紐付かないエラー（認証失敗の "system" など）はフォーム下にまとめて出す。
-  const systemError = errors.find(
-    (e) => !["name", "password", "passwordConfirmation"].includes(e.field),
-  )?.message;
+  const { setErrors, fieldError, systemError } = useFieldErrors([
+    "name",
+    "password",
+    "passwordConfirmation",
+  ]);
 
   // 確認用パスワードは打ち間違い防止用。入力途中は不一致を出さない。
   const passwordMismatch =
@@ -143,11 +144,7 @@ export default function EditProfilePage() {
             }
           />
 
-          {systemError && (
-            <Typography sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}>
-              {systemError}
-            </Typography>
-          )}
+          <FormError message={systemError} />
 
           <Button
             type="submit"

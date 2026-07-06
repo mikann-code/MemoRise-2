@@ -4,13 +4,13 @@ import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
-import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import NotesIcon from "@mui/icons-material/Notes";
-import { Button, FloatingInput } from "@/components/common/ui";
+import { Button, FloatingInput, FormError } from "@/components/common/ui";
 import { useCreateAdminWordbookMutation } from "@/graphql/mutations/createAdminWordbook";
+import { useFieldErrors } from "@/lib/forms/fieldErrors";
 import { WORDBOOK_LABELS } from "@/constants/wordbookLabels";
 import { WORDBOOK_LEVELS } from "@/constants/wordbookLevels";
 import AdminPageHeader from "../../_components/AdminPageHeader";
@@ -20,8 +20,6 @@ import AdminPageHeader from "../../_components/AdminPageHeader";
  * ラベルはバックエンド Wordbook::LABELS に一致する選択式（値検証は BE）。
  */
 
-type FieldError = { field: string; message: string };
-
 export default function NewAdminWordbookPage() {
   const router = useRouter();
   const [createAdminWordbook, { loading }] = useCreateAdminWordbookMutation();
@@ -30,13 +28,12 @@ export default function NewAdminWordbookPage() {
   const [description, setDescription] = useState("");
   const [label, setLabel] = useState("");
   const [level, setLevel] = useState("");
-  const [errors, setErrors] = useState<FieldError[]>([]);
-
-  const fieldError = (field: string) =>
-    errors.find((e) => e.field === field)?.message;
-  const systemError = errors.find(
-    (e) => !["title", "description", "label", "level"].includes(e.field),
-  )?.message;
+  const { setErrors, fieldError, systemError } = useFieldErrors([
+    "title",
+    "description",
+    "label",
+    "level",
+  ]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -138,11 +135,7 @@ export default function NewAdminWordbookPage() {
           ))}
         </TextField>
 
-        {systemError && (
-          <Typography sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}>
-            {systemError}
-          </Typography>
-        )}
+        <FormError message={systemError} />
 
         <Button type="submit" disabled={loading}>
           {loading ? "作成中..." : "作成"}
