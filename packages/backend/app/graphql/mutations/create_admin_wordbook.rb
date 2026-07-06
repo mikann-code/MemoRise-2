@@ -27,7 +27,7 @@ module Mutations
         description: description,
         label: label || parent&.label,
         level: level || parent&.level,
-        order_index: order_index,
+        order_index: order_index || (parent && next_chapter_order(parent)),
         parent: parent,
         kind: :official,
         user: nil
@@ -46,6 +46,14 @@ module Mutations
     end
 
     private
+
+    # 章（子）の並び順を末尾へ自動採番する。管理者に数値を意識させないため、
+    # 追加した順に第1章→第2章…と並ぶよう「同じ親内の最大 order_index + 1」を割り当てる。
+    # 論理削除済みの章は order_index が NULL（席を明け渡し済み）なので maximum の対象外。
+    # 並び替えは progress（章の解放順）と直結するため、必要になったら別途 UI で扱う。
+    def next_chapter_order(parent)
+      parent.children.maximum(:order_index).to_i + 1
+    end
 
     # 教材に必ず 1 つは章がある状態を作る既定の章。label / level は親を引き継ぐ。
     # タイトル等は作成後に updateAdminWordbook で変更できる。

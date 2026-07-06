@@ -76,6 +76,24 @@ RSpec.describe Mutations::CreateAdminWordbook do
       expect(created.children).to be_empty
     end
 
+    it "orderIndex 省略で章を作ると同じ親の末尾（最大 + 1）へ自動採番する" do
+      parent = create(:wordbook, :official)
+      create(:wordbook, :official, parent: parent, order_index: 2)
+
+      data = execute_create({ title: "次の章", parentId: parent.id.to_s })
+
+      expect(data["success"]).to be(true)
+      expect(data.dig("wordbook", "orderIndex")).to eq(3)
+    end
+
+    it "章が 1 つも無い親に orderIndex 省略で章を作ると 1 になる" do
+      parent = create(:wordbook, :official)
+
+      data = execute_create({ title: "第1章", parentId: parent.id.to_s })
+
+      expect(data.dig("wordbook", "orderIndex")).to eq(1)
+    end
+
     it "論理削除済みの章と同じ orderIndex で章を再作成できる（席の明け渡し）" do
       parent = create(:wordbook, :official)
       create(:wordbook, :official, parent: parent, order_index: 1).discard!
