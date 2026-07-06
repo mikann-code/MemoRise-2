@@ -7,15 +7,15 @@ RSpec.describe Mutations::UpdateAdminWordbook do
     <<~GQL
       mutation UpdateAdminWordbook(
         $id: ID!, $title: String, $description: String, $label: String,
-        $level: String, $part: String, $orderIndex: Int
+        $level: String, $orderIndex: Int
       ) {
         updateAdminWordbook(
           id: $id, title: $title, description: $description, label: $label,
-          level: $level, part: $part, orderIndex: $orderIndex
+          level: $level, orderIndex: $orderIndex
         ) {
           success
           errors { field message }
-          wordbook { id title description label level part orderIndex }
+          wordbook { id title description label level orderIndex }
         }
       }
     GQL
@@ -46,10 +46,10 @@ RSpec.describe Mutations::UpdateAdminWordbook do
 
     it "親の label / level 変更は子（章）へ伝播する（論理削除済みの章にも）" do
       parent = create(:wordbook, :official, label: "eiken", level: "3")
-      chapter = create(:wordbook, :official, parent_id: parent.id, part: "1",
+      chapter = create(:wordbook, :official, parent_id: parent.id, order_index: 1,
                        label: "eiken", level: "3")
       discarded_chapter = create(:wordbook, :official, :discarded, parent_id: parent.id,
-                                 part: "2", label: "eiken", level: "3")
+                                 label: "eiken", level: "3")
 
       data = execute_update({ id: parent.id.to_s, label: "toeic", level: "600" })
 
@@ -62,7 +62,7 @@ RSpec.describe Mutations::UpdateAdminWordbook do
 
     it "親の title 更新だけでは子へ伝播しない" do
       parent = create(:wordbook, :official, label: "eiken")
-      chapter = create(:wordbook, :official, parent_id: parent.id, part: "1", label: "eiken")
+      chapter = create(:wordbook, :official, parent_id: parent.id, order_index: 1, label: "eiken")
 
       execute_update({ id: parent.id.to_s, title: "改題" })
 
@@ -72,12 +72,12 @@ RSpec.describe Mutations::UpdateAdminWordbook do
 
     it "章（子）自体の更新もできる" do
       parent = create(:wordbook, :official)
-      chapter = create(:wordbook, :official, parent_id: parent.id, part: "1", order_index: 1)
+      chapter = create(:wordbook, :official, parent_id: parent.id, order_index: 1)
 
-      data = execute_update({ id: chapter.id.to_s, part: "2", orderIndex: 2 })
+      data = execute_update({ id: chapter.id.to_s, title: "改題した章", orderIndex: 2 })
 
       expect(data["success"]).to be(true)
-      expect(chapter.reload.part).to eq("2")
+      expect(chapter.reload.title).to eq("改題した章")
       expect(chapter.order_index).to eq(2)
     end
   end
@@ -109,12 +109,12 @@ RSpec.describe Mutations::UpdateAdminWordbook do
       expect(data.dig("errors", 0, "field")).to eq("id")
     end
 
-    it "同じ親の中で part が重複する更新は system エラーを返す" do
+    it "同じ親の中で orderIndex が重複する更新は system エラーを返す" do
       parent = create(:wordbook, :official)
-      create(:wordbook, :official, parent_id: parent.id, part: "1")
-      chapter = create(:wordbook, :official, parent_id: parent.id, part: "2")
+      create(:wordbook, :official, parent_id: parent.id, order_index: 1)
+      chapter = create(:wordbook, :official, parent_id: parent.id, order_index: 2)
 
-      data = execute_update({ id: chapter.id.to_s, part: "1" })
+      data = execute_update({ id: chapter.id.to_s, orderIndex: 1 })
 
       expect(data["success"]).to be(false)
       expect(data.dig("errors", 0, "field")).to eq("system")

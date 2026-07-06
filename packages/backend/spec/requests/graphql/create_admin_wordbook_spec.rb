@@ -7,15 +7,15 @@ RSpec.describe Mutations::CreateAdminWordbook do
     <<~GQL
       mutation CreateAdminWordbook(
         $title: String!, $description: String, $label: String, $level: String,
-        $parentId: ID, $part: String, $orderIndex: Int
+        $parentId: ID, $orderIndex: Int
       ) {
         createAdminWordbook(
           title: $title, description: $description, label: $label, level: $level,
-          parentId: $parentId, part: $part, orderIndex: $orderIndex
+          parentId: $parentId, orderIndex: $orderIndex
         ) {
           success
           errors { field message }
-          wordbook { id title label level part orderIndex kind }
+          wordbook { id title label level orderIndex kind }
         }
       }
     GQL
@@ -45,11 +45,25 @@ RSpec.describe Mutations::CreateAdminWordbook do
       expect(created.label).to eq("toeic")
     end
 
+    it "親の作成時に既定の章「第1章」を 1 つ自動作成する（label / level は親を引き継ぐ）" do
+      data = execute_create({ title: "TOEIC 基礎", label: "toeic", level: "初級" })
+
+      created = Wordbook.find(data.dig("wordbook", "id"))
+      expect(created.children.count).to eq(1)
+      chapter = created.children.first
+      expect(chapter.title).to eq("第1章")
+      expect(chapter.order_index).to eq(1)
+      expect(chapter.label).to eq("toeic")
+      expect(chapter.level).to eq("初級")
+      expect(chapter.official?).to be(true)
+      expect(chapter.user_id).to be_nil
+    end
+
     it "parentId 指定で章（子）を作成し、label / level 省略時は親から引き継ぐ" do
       parent = create(:wordbook, :official, label: "eiken", level: "3")
 
       data = execute_create(
-        { title: "第1章", parentId: parent.id.to_s, part: "1", orderIndex: 1 }
+        { title: "第1章", parentId: parent.id.to_s, orderIndex: 1 }
       )
 
       expect(data["success"]).to be(true)
@@ -57,20 +71,22 @@ RSpec.describe Mutations::CreateAdminWordbook do
       expect(created.parent_id).to eq(parent.id)
       expect(created.label).to eq("eiken")
       expect(created.level).to eq("3")
-      expect(created.part).to eq("1")
+      expect(created.order_index).to eq(1)
+      # 既定の章の自動作成は親の作成時のみ（章の下に章は作らない）
+      expect(created.children).to be_empty
     end
 
-    it "論理削除済みの章と同じ part / orderIndex で章を再作成できる（席の明け渡し）" do
+    it "論理削除済みの章と同じ orderIndex で章を再作成できる（席の明け渡し）" do
       parent = create(:wordbook, :official)
-      create(:wordbook, :official, parent: parent, part: "1", order_index: 1).discard!
+      create(:wordbook, :official, parent: parent, order_index: 1).discard!
 
       data = execute_create(
-        { title: "第1章（作り直し）", parentId: parent.id.to_s, part: "1", orderIndex: 1 }
+        { title: "第1章（作り直し）", parentId: parent.id.to_s, orderIndex: 1 }
       )
 
       expect(data["success"]).to be(true)
       expect(data["errors"]).to eq([])
-      expect(data.dig("wordbook", "part")).to eq("1")
+      expect(data.dig("wordbook", "orderIndex")).to eq(1)
     end
   end
 
@@ -99,7 +115,7 @@ RSpec.describe Mutations::CreateAdminWordbook do
 
     it "章（子）を親には指定できない（階層は親→章の 2 段まで）" do
       parent = create(:wordbook, :official)
-      chapter = create(:wordbook, :official, parent_id: parent.id, part: "1")
+      chapter = create(:wordbook, :official, parent_id: parent.id, order_index: 1)
 
       data = execute_create({ title: "孫", parentId: chapter.id.to_s })
 
@@ -107,11 +123,11 @@ RSpec.describe Mutations::CreateAdminWordbook do
       expect(data.dig("errors", 0, "field")).to eq("parentId")
     end
 
-    it "同じ親の中で part が重複する場合は system エラーを返す" do
+    it "同じ親の中で orderIndex が重複する場合は system エラーを返す" do
       parent = create(:wordbook, :official)
-      create(:wordbook, :official, parent_id: parent.id, part: "1")
+      create(:wordbook, :official, parent_id: parent.id, order_index: 1)
 
-      data = execute_create({ title: "重複章", parentId: parent.id.to_s, part: "1" })
+      data = execute_create({ title: "重複章", parentId: parent.id.to_s, orderIndex: 1 })
 
       expect(data["success"]).to be(false)
       expect(data.dig("errors", 0, "field")).to eq("system")

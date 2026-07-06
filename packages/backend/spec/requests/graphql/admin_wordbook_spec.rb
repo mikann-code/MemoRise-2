@@ -8,7 +8,7 @@ RSpec.describe Resolvers::AdminWordbook do
       query AdminWordbook($id: ID!) {
         adminWordbook(id: $id) {
           id title parentId
-          children { id title part }
+          children { id title orderIndex }
           words { id question answer }
         }
       }
@@ -24,8 +24,8 @@ RSpec.describe Resolvers::AdminWordbook do
   describe "正常系" do
     it "教材を渡すと章（children）を order_index 昇順で返す" do
       parent = create(:wordbook, :official, title: "TOEIC")
-      create(:wordbook, :official, parent_id: parent.id, title: "第2章", part: "2", order_index: 2)
-      create(:wordbook, :official, parent_id: parent.id, title: "第1章", part: "1", order_index: 1)
+      create(:wordbook, :official, parent_id: parent.id, title: "第2章", order_index: 2)
+      create(:wordbook, :official, parent_id: parent.id, title: "第1章", order_index: 1)
 
       data = execute(parent.id).dig("data", "adminWordbook")
       expect(data["title"]).to eq("TOEIC")
@@ -35,7 +35,7 @@ RSpec.describe Resolvers::AdminWordbook do
 
     it "章を渡すと単語（words）を返す" do
       parent = create(:wordbook, :official)
-      chapter = create(:wordbook, :official, parent_id: parent.id, part: "1", order_index: 1)
+      chapter = create(:wordbook, :official, parent_id: parent.id, order_index: 1)
       create(:word, wordbook: chapter, user: nil, question: "apple", answer: "りんご")
 
       data = execute(chapter.id).dig("data", "adminWordbook")

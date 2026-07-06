@@ -22,7 +22,6 @@ namespace :demo do
         description: "動作確認用のデモ単語帳（英検3級）",
         chapters: [
           {
-            part: "1",
             words: [
               { question: "improve",  answer: "改善する" },
               { question: "environment", answer: "環境" },
@@ -31,7 +30,6 @@ namespace :demo do
             ]
           },
           {
-            part: "2",
             words: [
               { question: "increase", answer: "増える・増やす" },
               { question: "reason",   answer: "理由" },
@@ -47,7 +45,6 @@ namespace :demo do
         description: "動作確認用のデモ単語帳（中学基礎）",
         chapters: [
           {
-            part: "1",
             words: [
               { question: "apple",  answer: "りんご" },
               { question: "school", answer: "学校" },
@@ -66,13 +63,14 @@ namespace :demo do
         wb.description = book[:description]
       end
 
-      book[:chapters].each do |ch|
-        chapter = parent.children.find_or_create_by!(part: ch[:part]) do |wb|
-          wb.title = "#{book[:title]} 第#{ch[:part]}章"
+      book[:chapters].each_with_index do |ch, i|
+        # 章番号（第○章）は持たず、並び順（order_index）だけを振る。
+        # 表示上の番号はフロントが order_index 順の並び位置から導出する。
+        chapter = parent.children.find_or_create_by!(order_index: i + 1) do |wb|
+          wb.title = "#{book[:title]} 第#{i + 1}章"
           wb.kind = :official
           wb.label = book[:label]
           wb.level = book[:level]
-          wb.order_index = ch[:part].to_i
         end
 
         ch[:words].each do |attrs|

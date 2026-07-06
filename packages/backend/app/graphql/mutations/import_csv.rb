@@ -1,10 +1,11 @@
 module Mutations
-  # 公式単語帳への単語の CSV 一括登録（管理者専用）。
+  # 公式単語帳への単語の CSV 一括登録（管理者専用）。単語は章（子単語帳）にのみ登録できる
+  # （教材＝親単語帳は章の入れ物で単語を直接持たない。CreateAdminWord と同じ方針）。
   # 1 行 = "問題,答え"（最初のカンマで 2 分割。答えにカンマを含めたい場合はそのまま後半に残す）。
   # 1 行ずつ単語を作成し、失敗した行は行番号付きエラーとして errors に載せる。
   # 正常な行はそのまま登録し（部分成功）、importedCount で登録件数を返す（部分失敗が分かること）。
   class ImportCsv < BaseMutation
-    argument :wordbook_id, ID, required: true, description: "登録先の公式単語帳（教材・章）"
+    argument :wordbook_id, ID, required: true, description: "登録先の公式単語帳（章のみ）"
     argument :csv, String, required: true, description: "1 行につき 問題,答え の CSV テキスト"
 
     field :success, Boolean, null: false
@@ -17,6 +18,7 @@ module Mutations
 
       wordbook = Wordbook.official.kept.find_by(id: wordbook_id)
       return failure(not_found_errors) unless wordbook
+      return failure(top_level_wordbook_errors) if wordbook.parent_id.nil?
 
       row_errors = []
       imported = 0
@@ -58,6 +60,10 @@ module Mutations
 
     def not_found_errors
       [ { field: "wordbookId", message: "登録先の公式単語帳が見つかりません" } ]
+    end
+
+    def top_level_wordbook_errors
+      [ { field: "wordbookId", message: "教材（親単語帳）には単語を登録できません。章を作成して章に登録してください" } ]
     end
   end
 end

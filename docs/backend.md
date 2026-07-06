@@ -48,14 +48,13 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 | parent_id | bigint | 自己参照（親子階層） |
 | label | string | junior_high / eiken / toeic / official 等 |
 | level | string | |
-| part | string | 章 |
-| order_index | integer | 章の並び順 |
+| order_index | integer | 章の並び順（表示番号「第○章」はフロントが並び位置から導出） |
 | last_studied | datetime | 「最近学習した順」ソート用 |
 | deleted_at | datetime | 論理削除 |
 | words_count | integer | counter_cache |
 
 - 自己参照 1:N：`belongs_to :parent` / `has_many :children`。親 = TOEIC 等、子 = Day/章。
-- ユニーク制約：`[parent_id, order_index]`、`[parent_id, part]`、`uuid`。同一親内の重複・順序衝突を DB レベルで防止。
+- ユニーク制約：`[parent_id, order_index]`、`uuid`。同一親内の順序衝突を DB レベルで防止。
 - `scope :active, -> { where(deleted_at: nil) }`。削除は `update!(deleted_at: Time.current)`。
 
 ### words
@@ -123,7 +122,8 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
   - `totalWords` は登録単語数（`users.words_count` の counter_cache）を返す（本人スコープ・要ログイン）。マイページの表示に使う。
   - `wordbookProgresses(wordbookId)` は公式単語帳（親）の章ごとの解放状態（`WordbookProgress { id, wordbookId, completed }`）を返す。解放は進捗レコードの存在で表現し、取得時に先頭章の進捗を遅延作成（lazy initialization）する。公式でない/存在しない親は空配列。要ログイン。
 - 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`createAdminWord` / `updateAdminWord` / `deleteAdminWord`、`importCsv`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `createStudyRecord` / `updateProfile` / `completeWordbookProgress`
-  - `createAdminWord` / `updateAdminWord` / `deleteAdminWord` は公式単語帳（教材・章）の単語 CRUD。対象は「公式かつ論理削除前の単語帳に属する単語」に限定し、自作単語へ書く事故を構造的に防ぐ。`importCsv` は §3 の CSV 一括登録（行番号付きエラー・部分成功）。いずれも admin コンテキスト必須。
+  - `createAdminWordbook` は `parentId` なしで教材（トップレベル）、ありで章（子）を作成する。単語は章にのみ登録できる設計のため、教材の作成時は既定の章「第1章」（order_index `1`・label / level は親を引き継ぐ）を同一トランザクションで 1 つ自動作成し、章ゼロの教材を作らない。章番号カラムは持たず、表示番号「第○章」はフロントが order_index 昇順の並び位置から導出する。
+  - `createAdminWord` / `updateAdminWord` / `deleteAdminWord` は公式単語帳の単語 CRUD。対象は「公式かつ論理削除前の単語帳に属する単語」に限定し、自作単語へ書く事故を構造的に防ぐ。単語を追加できるのは章（子単語帳）のみで、教材（親・トップレベル）は章の入れ物として単語を直接持たない（`createAdminWord` / `importCsv` は教材への登録を `wordbookId` エラーで拒否する）。`importCsv` は §3 の CSV 一括登録（行番号付きエラー・部分成功）。いずれも admin コンテキスト必須。
   - `createStudyRecord` は「日次サマリーの増分更新 + 詳細追加 + streak 更新」を 1 トランザクションで行う（§3）。
     学習日はサーバー日付（JST）。同一テストの二重送信防止はフロントの `hasPostedRef` が担う（[frontend.md](./frontend.md) §5）。
     記録の種類は GraphQL enum `StudyRecordKind`（`WORDBOOK` = 単語帳のテスト・wordbookId 必須 /

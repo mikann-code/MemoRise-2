@@ -17,7 +17,9 @@ RSpec.describe Mutations::ImportCsv do
   end
 
   let(:admin) { create(:user, :admin) }
-  let(:wordbook) { create(:wordbook, :official) }
+  # 単語を登録できるのは章（子単語帳）のみ。教材（親）は入れ物なので拒否される。
+  let(:parent) { create(:wordbook, :official) }
+  let(:wordbook) { create(:wordbook, :official, parent: parent) }
 
   def execute_import(csv, wordbook_id: wordbook.id.to_s, context: { current_admin: admin })
     execute_graphql(mutation, variables: { wordbookId: wordbook_id, csv: csv }, context: context)
@@ -73,6 +75,15 @@ RSpec.describe Mutations::ImportCsv do
 
       expect(data["success"]).to be(false)
       expect(data.dig("errors", 0, "field")).to eq("wordbookId")
+    end
+
+    it "教材（親単語帳）には登録できない（wordbookId エラー）" do
+      data = execute_import("a,い", wordbook_id: parent.id.to_s)
+
+      expect(data["success"]).to be(false)
+      expect(data["importedCount"]).to eq(0)
+      expect(data.dig("errors", 0, "field")).to eq("wordbookId")
+      expect(parent.words.count).to eq(0)
     end
 
     it "一般ユーザーは登録できない（system エラー）" do

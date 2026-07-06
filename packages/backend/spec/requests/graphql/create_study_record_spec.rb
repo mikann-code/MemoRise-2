@@ -58,14 +58,14 @@ RSpec.describe Mutations::CreateStudyRecord do
       expect(user.reload.streak).to eq(1) # 同日 2 回でも streak は増えない（冪等）
     end
 
-    it "公式の章は「親タイトル + part」で記録する" do
+    it "公式の章は「親タイトル + 章タイトル」で記録する" do
       parent = create(:wordbook, :official, title: "TOEIC")
-      chapter = create(:wordbook, :official, parent: parent, part: "Day 1")
+      chapter = create(:wordbook, :official, parent: parent, title: "第1章")
 
       data = execute_create({ kind: "WORDBOOK", totalCount: 4, correctCount: 2, wordbookId: chapter.id.to_s })
 
       expect(data["success"]).to be(true)
-      expect(StudyDetail.last.title).to eq("TOEIC Day 1")
+      expect(StudyDetail.last.title).to eq("TOEIC 第1章")
     end
 
     it "復習専用テスト（REVIEW）は固定タイトル・単語帳なしで記録する" do

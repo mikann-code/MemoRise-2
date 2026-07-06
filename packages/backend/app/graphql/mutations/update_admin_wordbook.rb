@@ -9,7 +9,6 @@ module Mutations
     argument :description, String, required: false
     argument :label, String, required: false, description: "親の変更は章へ伝播"
     argument :level, String, required: false, description: "親の変更は章へ伝播"
-    argument :part, String, required: false, description: "章番号"
     argument :order_index, Integer, required: false, description: "並び順"
 
     def resolve(id:, **attrs)

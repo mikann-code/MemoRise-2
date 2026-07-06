@@ -16,7 +16,9 @@ RSpec.describe Mutations::CreateAdminWord do
   end
 
   let(:admin) { create(:user, :admin) }
-  let(:wordbook) { create(:wordbook, :official) }
+  # 単語を追加できるのは章（子単語帳）のみ。教材（親）は入れ物なので拒否される。
+  let(:parent) { create(:wordbook, :official) }
+  let(:wordbook) { create(:wordbook, :official, parent: parent) }
 
   def execute_create(variables, context: { current_admin: admin })
     execute_graphql(mutation, variables: variables, context: context)
@@ -24,7 +26,7 @@ RSpec.describe Mutations::CreateAdminWord do
   end
 
   describe "正常系" do
-    it "公式単語帳に単語を追加する（user は付かない）" do
+    it "章（子の公式単語帳）に単語を追加する（user は付かない）" do
       data = execute_create(
         { wordbookId: wordbook.id.to_s, question: "apple", answer: "りんご" }
       )
@@ -52,6 +54,14 @@ RSpec.describe Mutations::CreateAdminWord do
 
       expect(data["success"]).to be(false)
       expect(data.dig("errors", 0, "field")).to eq("wordbookId")
+    end
+
+    it "教材（親単語帳）には追加できない（wordbookId エラー）" do
+      data = execute_create({ wordbookId: parent.id.to_s, question: "a", answer: "い" })
+
+      expect(data["success"]).to be(false)
+      expect(data.dig("errors", 0, "field")).to eq("wordbookId")
+      expect(parent.words.count).to eq(0)
     end
   end
 

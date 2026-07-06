@@ -49,7 +49,7 @@ RSpec.describe Wordbook, type: :model do
   describe "自己参照（親子）" do
     it "親に子をぶら下げられる" do
       parent = create(:wordbook, :official)
-      child = create(:wordbook, :official, parent: parent, part: "Day 1", order_index: 1)
+      child = create(:wordbook, :official, parent: parent, order_index: 1)
       expect(parent.children).to include(child)
       expect(child.parent).to eq(parent)
     end
@@ -58,9 +58,9 @@ RSpec.describe Wordbook, type: :model do
   describe "ユニーク制約 [parent_id, order_index]（DB レベル）" do
     it "同一親で order_index が重複すると保存できない" do
       parent = create(:wordbook, :official)
-      create(:wordbook, :official, parent: parent, order_index: 1, part: "A")
+      create(:wordbook, :official, parent: parent, order_index: 1)
       # validate: false で挿入し、[parent_id, order_index] の一意制約に確実に当てる。
-      dup = build(:wordbook, :official, parent: parent, order_index: 1, part: "B")
+      dup = build(:wordbook, :official, parent: parent, order_index: 1)
 
       expect { dup.save!(validate: false) }.to raise_error(ActiveRecord::RecordNotUnique)
     end
@@ -97,20 +97,19 @@ RSpec.describe Wordbook, type: :model do
 
     it "親を discard! しても子（章）は連動しない（self のみ）" do
       parent = create(:wordbook, :official)
-      child = create(:wordbook, :official, parent: parent, part: "Day 1", order_index: 1)
+      child = create(:wordbook, :official, parent: parent, order_index: 1)
       parent.discard!
       expect(child.reload.discarded?).to be(false)
     end
 
-    it "章の #discard! は part / order_index を明け渡し、同じ値で章を再作成できる" do
+    it "章の #discard! は order_index を明け渡し、同じ値で章を再作成できる" do
       parent = create(:wordbook, :official)
-      chapter = create(:wordbook, :official, parent: parent, part: "1", order_index: 1)
+      chapter = create(:wordbook, :official, parent: parent, order_index: 1)
 
       chapter.discard!
 
-      expect(chapter.reload.part).to be_nil
-      expect(chapter.order_index).to be_nil
-      recreated = create(:wordbook, :official, parent: parent, part: "1", order_index: 1)
+      expect(chapter.reload.order_index).to be_nil
+      recreated = create(:wordbook, :official, parent: parent, order_index: 1)
       expect(recreated).to be_persisted
     end
 

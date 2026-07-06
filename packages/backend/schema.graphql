@@ -231,7 +231,7 @@ type Mutation {
     question: String!
 
     """
-    追加先の公式単語帳（教材・章）
+    追加先の公式単語帳（章のみ）
     """
     wordbookId: ID!
   ): CreateAdminWordPayload
@@ -261,11 +261,6 @@ type Mutation {
     指定すると章（子）として作成
     """
     parentId: ID
-
-    """
-    章番号
-    """
-    part: String
     title: String!
   ): CreateAdminWordbookPayload
 
@@ -350,7 +345,7 @@ type Mutation {
     csv: String!
 
     """
-    登録先の公式単語帳（教材・章）
+    登録先の公式単語帳（章のみ）
     """
     wordbookId: ID!
   ): ImportCsvPayload
@@ -411,11 +406,6 @@ type Mutation {
     並び順
     """
     orderIndex: Int
-
-    """
-    章番号
-    """
-    part: String
     title: String
   ): UpdateAdminWordbookPayload
 
@@ -783,11 +773,6 @@ type Wordbook {
   親（教材）の ID。null なら教材（トップレベル）
   """
   parentId: ID
-
-  """
-  章
-  """
-  part: String
   title: String!
 
   """
