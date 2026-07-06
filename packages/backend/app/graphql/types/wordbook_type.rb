@@ -7,6 +7,7 @@ module Types
     field :description, String, null: true
     field :label, String, null: true, description: "junior_high / eiken / toeic / official 等"
     field :level, String, null: true
+    field :parent_id, ID, null: true, description: "親（教材）の ID。null なら教材（トップレベル）"
     field :part, String, null: true, description: "章"
     field :order_index, Integer, null: true, description: "章の並び順"
     field :kind, String, null: false, description: "official / personal / shared"

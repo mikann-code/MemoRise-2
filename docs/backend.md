@@ -104,7 +104,9 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 - **章の解放**：`complete` 操作で現在パートを完了し、`order_index` 昇順で次パートを `find_or_create_by!`。完了と解放を同一トランザクションで処理。
 - **streak 更新**：モデル内 `update_streak!` にカプセル化。
 - **今日の一問**：公式単語からランダム 1 件を返す軽実装。
-- **CSV 一括登録（管理者）**：1 行ずつ単語作成、行番号付きエラーを返す。
+- **CSV 一括登録（管理者）**：1 行 = 「問題,答え」（最初のカンマで 2 分割）。1 行ずつ単語を作成し、
+  正常な行はそのまま登録（部分成功）、失敗した行は行番号付きエラーとして errors に載せる。
+  `importedCount` で登録件数を返す（Ruby 3.4 で csv が既定 gem から外れたため、外部 gem に依存せず素朴に分割する）。
 
 ## 4. GraphQL スキーマ設計（v2 / REST からの移行）
 
@@ -114,12 +116,14 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 
 **実装状況**（`schema.graphql` が正）：
 
-- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `todayWord` / `totalWords` / `taggedWords` / `wordbookProgresses(wordbookId)` / `studyRecords(year, month)` / `studyRecordsWeek(startDate)` / `studyRecordsRecent`
+- 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `todayWord` / `totalWords` / `taggedWords` / `wordbookProgresses(wordbookId)` / `studyRecords(year, month)` / `studyRecordsWeek(startDate)` / `studyRecordsRecent` / `adminWordbooks` / `adminWordbook(id)` / `adminUsers(page, perPage, keyword, sortBy, sortOrder)` / `adminStats`
+  - `adminWordbooks` は公式単語帳の教材（トップレベル・論理削除を除く）を order_index 昇順で返す。`adminWordbook(id)` は教材・章どちらの id でも引け、`children`（章）/ `words`（単語）まで辿れる管理用取得。`adminUsers` は全ユーザーをキーワード検索（`keyword`：name / email の部分一致・大小無視）・並び替え（`sortBy`：`CREATED_AT` / `WORDS_COUNT`、`sortOrder`：`ASC` / `DESC`、既定は登録日の降順）・ページング（`page` 1 始まり、`perPage` は 1〜100 にクランプ）して `AdminUsersResult { nodes, totalCount }` を返す（`totalCount` は絞り込み後・ページ分割前の総数）。`adminStats` はユーザー数・単語数・公式/自作単語帳数の集計。いずれも `require_admin!` でガード（失敗は FORBIDDEN を raise）。
   - `studyRecords` 系は current_user スコープで `study_details` 込みを返す（月別 = カレンダー用・日付昇順 / 週別 = startDate から 7 日分・週初めの月曜補正はフロント側 / 直近 = 新しい日付順・最大 30 件）。不正な年月は `BAD_REQUEST` を raise。
   - `todayWord` は公式単語帳の単語（論理削除済み単語帳を除く）からランダム 1 件を返す軽実装。公式単語が 0 件なら null（フロントは `fallbackWords` に切り替え）。要ログイン。
   - `totalWords` は登録単語数（`users.words_count` の counter_cache）を返す（本人スコープ・要ログイン）。マイページの表示に使う。
   - `wordbookProgresses(wordbookId)` は公式単語帳（親）の章ごとの解放状態（`WordbookProgress { id, wordbookId, completed }`）を返す。解放は進捗レコードの存在で表現し、取得時に先頭章の進捗を遅延作成（lazy initialization）する。公式でない/存在しない親は空配列。要ログイン。
-- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `createStudyRecord` / `updateProfile` / `completeWordbookProgress`
+- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`createAdminWord` / `updateAdminWord` / `deleteAdminWord`、`importCsv`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `createStudyRecord` / `updateProfile` / `completeWordbookProgress`
+  - `createAdminWord` / `updateAdminWord` / `deleteAdminWord` は公式単語帳（教材・章）の単語 CRUD。対象は「公式かつ論理削除前の単語帳に属する単語」に限定し、自作単語へ書く事故を構造的に防ぐ。`importCsv` は §3 の CSV 一括登録（行番号付きエラー・部分成功）。いずれも admin コンテキスト必須。
   - `createStudyRecord` は「日次サマリーの増分更新 + 詳細追加 + streak 更新」を 1 トランザクションで行う（§3）。
     学習日はサーバー日付（JST）。同一テストの二重送信防止はフロントの `hasPostedRef` が担う（[frontend.md](./frontend.md) §5）。
     記録の種類は GraphQL enum `StudyRecordKind`（`WORDBOOK` = 単語帳のテスト・wordbookId 必須 /
@@ -127,7 +131,7 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
   - `addTaggedWord` / `removeTaggedWord` の対象は「本人の単語 or 公式単語帳の単語」（論理削除済み単語帳を除く）。
   - `updateProfile` は本人のプロフィール編集（名前は必須・パスワードは変更時のみ）。パスワード変更時は確認用との一致を検証する。
   - `completeWordbookProgress(wordbookId)` は公式単語帳の章を完了（`completed: true`）し、`order_index` 昇順で次章を `find_or_create_by!` で解放する。完了と解放を同一トランザクションで処理（§3）。
-- 未実装：`studyWordbook`（`last_studied` 更新）、`adminUsers` / `adminStats` / 管理者の単語 CRUD / `importCsv`
+- 未実装：`studyWordbook`（`last_studied` 更新）
   - `studyWordbook` は `last_studied` を更新する任意 Mutation。現状 `last_studied` を参照する導線・受け入れ条件が無いため見送り（必要になれば `createStudyRecord` への統合含め別途）。
   （未実装のテーブルは §2 のとおり作成済み。フロントは未実装分をクライアント一時状態でフォールバック中 → [frontend.md](./frontend.md) §3）
 
