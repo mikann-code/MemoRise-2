@@ -164,7 +164,6 @@ async function mockGraphql(page: Page) {
                 {
                   id: "10",
                   title: "TOEIC 第1章",
-                  part: "1",
                   wordsCount: 2,
                   __typename: "Wordbook",
                 },
@@ -189,7 +188,6 @@ async function mockGraphql(page: Page) {
                 {
                   id: "10",
                   title: "TOEIC 第1章",
-                  part: "1",
                   description: "テスト用の章です。",
                   wordsCount: 2,
                   words: WORDS,
@@ -358,8 +356,8 @@ test("章のテストを完了すると次の Part が解放される（API 接�
   const progresses = [{ id: "p10", wordbookId: "10", completed: false }];
   const completeCalls: string[] = [];
   const children = [
-    { id: "10", title: "TOEIC 第1章", part: "1", wordsCount: 2 },
-    { id: "11", title: "TOEIC 第2章", part: "2", wordsCount: 2 },
+    { id: "10", title: "TOEIC 第1章", wordsCount: 2 },
+    { id: "11", title: "TOEIC 第2章", wordsCount: 2 },
   ];
 
   await page.route("**/graphql", async (route) => {

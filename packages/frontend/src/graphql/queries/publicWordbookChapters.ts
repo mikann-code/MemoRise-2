@@ -21,7 +21,6 @@ export const PublicWordbookChaptersDocument = graphql(`
       children {
         id
         title
-        part
         description
         wordsCount
         words {
