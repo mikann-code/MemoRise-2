@@ -53,7 +53,7 @@ RSpec.describe Wordbook, type: :model do
   describe "LABELS 定数（ラベル分類）" do
     it "許可するラベル値の集合を順序どおり持つ（フロント WORDBOOK_LABELS と一致）" do
       expect(Wordbook::LABELS).to eq(
-        %w[none junior_high high_school eiken toeic toefl daily official]
+        %w[junior_high high_school eiken toeic toefl daily official]
       )
     end
   end

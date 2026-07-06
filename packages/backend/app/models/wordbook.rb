@@ -4,7 +4,7 @@ class Wordbook < ApplicationRecord
   # （未知ラベルはフロントのどのセクションにも入らず一覧から消えるため、DB 側で防ぐ）。
   # 表示名・並び順はプレゼンの関心なのでフロント（packages/frontend/src/constants/wordbookLabels.ts）が持つ。
   # 任意項目（自作単語帳は nil）で、値 "official" が kind と衝突するため enum ではなく定数＋inclusion で扱う。
-  LABELS = %w[none junior_high high_school eiken toeic toefl daily official].freeze
+  LABELS = %w[junior_high high_school eiken toeic toefl daily official].freeze
 
   # 公式単語帳の難易度レベル（許可する値の集合）。同じ label（英検 / TOEIC 等）の中で
   # 教材を段階分け（基礎 → 標準 → 発展）し、同カテゴリ内で挑戦度を選び分けるために使う。
