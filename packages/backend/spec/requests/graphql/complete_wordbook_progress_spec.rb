@@ -15,9 +15,9 @@ RSpec.describe Mutations::CompleteWordbookProgress do
 
   let(:user) { create(:user) }
   let(:parent) { create(:wordbook, :official, title: "TOEIC") }
-  let!(:ch1) { create(:wordbook, :official, parent: parent, part: "1", order_index: 1) }
-  let!(:ch2) { create(:wordbook, :official, parent: parent, part: "2", order_index: 2) }
-  let!(:ch3) { create(:wordbook, :official, parent: parent, part: "3", order_index: 3) }
+  let!(:ch1) { create(:wordbook, :official, parent: parent, order_index: 1) }
+  let!(:ch2) { create(:wordbook, :official, parent: parent, order_index: 2) }
+  let!(:ch3) { create(:wordbook, :official, parent: parent, order_index: 3) }
 
   def execute_complete(id, context: { current_user: user })
     execute_graphql(mutation, variables: { wordbookId: id.to_s }, context: context)

@@ -27,13 +27,13 @@ RSpec.describe Resolvers::PublicWordbooks do
     end
 
     it "ラベル / レベル / kind を返す" do
-      create(:wordbook, :official, title: "TOEIC", label: "toeic", level: "中級")
+      create(:wordbook, :official, title: "TOEIC", label: "toeic", level: "standard")
 
       result = execute_graphql(query, context: { current_user: user })
       wb = result.dig("data", "publicWordbooks").first
 
       expect(wb["label"]).to eq("toeic")
-      expect(wb["level"]).to eq("中級")
+      expect(wb["level"]).to eq("standard")
       expect(wb["kind"]).to eq("official")
     end
   end

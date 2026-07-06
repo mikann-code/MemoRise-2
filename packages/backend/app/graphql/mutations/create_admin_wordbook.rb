@@ -3,16 +3,17 @@ module Mutations
   # parent_id なしで親（教材）、ありで子（章）を作成する。階層は親→章の 2 段まで
   # （章の下に章は作れない）ため、親に指定できるのはトップレベルの公式単語帳のみ。
   # 章の label / level を省略した場合は親の値を引き継ぐ（教材単位で揃える運用のため）。
+  # 単語は章にのみ登録できる設計（createAdminWord / importCsv）のため、親の作成時は
+  # 既定の章「第1章」を同一トランザクションで 1 つ自動作成し、章ゼロの教材を作らない。
   class CreateAdminWordbook < BaseAdminWordbookMutation
     argument :title, String, required: true
     argument :description, String, required: false
     argument :label, String, required: false, description: "省略時、章は親の label を引き継ぐ"
     argument :level, String, required: false, description: "省略時、章は親の level を引き継ぐ"
     argument :parent_id, ID, required: false, description: "指定すると章（子）として作成"
-    argument :part, String, required: false, description: "章番号"
     argument :order_index, Integer, required: false, description: "並び順"
 
-    def resolve(title:, description: nil, label: nil, level: nil, parent_id: nil, part: nil, order_index: nil)
+    def resolve(title:, description: nil, label: nil, level: nil, parent_id: nil, order_index: nil)
       return failure(forbidden_errors) unless current_admin
 
       parent = nil
@@ -26,8 +27,7 @@ module Mutations
         description: description,
         label: label || parent&.label,
         level: level || parent&.level,
-        part: part,
-        order_index: order_index,
+        order_index: order_index || (parent && next_chapter_order(parent)),
         parent: parent,
         kind: :official,
         user: nil
@@ -35,7 +35,10 @@ module Mutations
 
       return failure(validation_errors(wordbook)) unless wordbook.valid?
 
-      wordbook.save!
+      Wordbook.transaction do
+        wordbook.save!
+        create_default_chapter!(wordbook) if parent.nil?
+      end
 
       { success: true, errors: [], wordbook: wordbook }
     rescue ActiveRecord::RecordNotUnique
@@ -43,6 +46,27 @@ module Mutations
     end
 
     private
+
+    # 章（子）の並び順を末尾へ自動採番する。管理者に数値を意識させないため、
+    # 追加した順に第1章→第2章…と並ぶよう「同じ親内の最大 order_index + 1」を割り当てる。
+    # 論理削除済みの章は order_index が NULL（席を明け渡し済み）なので maximum の対象外。
+    # 並び替えは progress（章の解放順）と直結するため、必要になったら別途 UI で扱う。
+    def next_chapter_order(parent)
+      parent.children.maximum(:order_index).to_i + 1
+    end
+
+    # 教材に必ず 1 つは章がある状態を作る既定の章。label / level は親を引き継ぐ。
+    # タイトル等は作成後に updateAdminWordbook で変更できる。
+    def create_default_chapter!(parent)
+      parent.children.create!(
+        title: "第1章",
+        order_index: 1,
+        label: parent.label,
+        level: parent.level,
+        kind: :official,
+        user: nil
+      )
+    end
 
     # 親が見つからない（公式のトップレベル以外＝自作・章・削除済みを含む）。
     def parent_not_found_errors

@@ -10,7 +10,6 @@ class CreateWordbooks < ActiveRecord::Migration[8.1]
       t.references :parent, foreign_key: { to_table: :wordbooks, on_delete: :cascade }, null: true
       t.string :label
       t.string :level
-      t.string :part
       t.integer :order_index
       t.datetime :last_studied
       t.integer :words_count, null: false, default: 0
@@ -20,10 +19,9 @@ class CreateWordbooks < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    # 同一親内（章）の重複・順序衝突を DB レベルで防止する。
-    # 担保しない（公式は少数、表示順はアプリ側 / created_at で十分）。
+    # 同一親内（章）の順序衝突を DB レベルで防止する。
+    # 章番号は持たない（表示番号は order_index 順の並び位置からフロントで導出する）。
     add_index :wordbooks, [ :parent_id, :order_index ], unique: true
-    add_index :wordbooks, [ :parent_id, :part ], unique: true
     # kept / discarded スコープの絞り込み用。
     add_index :wordbooks, :deleted_at
   end

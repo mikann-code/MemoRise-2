@@ -17,8 +17,7 @@ parent = Wordbook.official.find_or_create_by!(title: "TOEIC 基礎単語", paren
   wb.description = "TOEIC 頻出の基礎単語帳"
 end
 
-day1 = parent.children.find_or_create_by!(part: "Day 1") do |wb|
-  wb.title = "TOEIC 基礎単語 Day 1"
+day1 = parent.children.find_or_create_by!(title: "TOEIC 基礎単語 Day 1") do |wb|
   wb.kind = :official
   wb.label = "toeic"
   wb.level = "basic"

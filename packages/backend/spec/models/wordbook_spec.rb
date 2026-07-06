@@ -17,6 +17,18 @@ RSpec.describe Wordbook, type: :model do
         expect(build(:wordbook, label: "IT")).to be_valid
       end
     end
+
+    context "level が official の場合（難易度の段階分類）" do
+      subject { build(:wordbook, :official) }
+
+      it { is_expected.to validate_inclusion_of(:level).in_array(Wordbook::LEVELS).allow_nil }
+    end
+
+    context "level が personal の場合" do
+      it "LEVELS に無い値でも検証対象外で保存できる（level は official 専用）" do
+        expect(build(:wordbook, level: "なんでも")).to be_valid
+      end
+    end
   end
 
   describe "関連" do
@@ -41,15 +53,21 @@ RSpec.describe Wordbook, type: :model do
   describe "LABELS 定数（ラベル分類）" do
     it "許可するラベル値の集合を順序どおり持つ（フロント WORDBOOK_LABELS と一致）" do
       expect(Wordbook::LABELS).to eq(
-        %w[none junior_high high_school eiken toeic toefl daily official]
+        %w[junior_high high_school eiken toeic toefl daily official]
       )
+    end
+  end
+
+  describe "LEVELS 定数（難易度分類）" do
+    it "許可するレベル値の集合を順序どおり持つ（フロント WORDBOOK_LEVELS と一致）" do
+      expect(Wordbook::LEVELS).to eq(%w[basic standard advanced])
     end
   end
 
   describe "自己参照（親子）" do
     it "親に子をぶら下げられる" do
       parent = create(:wordbook, :official)
-      child = create(:wordbook, :official, parent: parent, part: "Day 1", order_index: 1)
+      child = create(:wordbook, :official, parent: parent, order_index: 1)
       expect(parent.children).to include(child)
       expect(child.parent).to eq(parent)
     end
@@ -58,9 +76,9 @@ RSpec.describe Wordbook, type: :model do
   describe "ユニーク制約 [parent_id, order_index]（DB レベル）" do
     it "同一親で order_index が重複すると保存できない" do
       parent = create(:wordbook, :official)
-      create(:wordbook, :official, parent: parent, order_index: 1, part: "A")
+      create(:wordbook, :official, parent: parent, order_index: 1)
       # validate: false で挿入し、[parent_id, order_index] の一意制約に確実に当てる。
-      dup = build(:wordbook, :official, parent: parent, order_index: 1, part: "B")
+      dup = build(:wordbook, :official, parent: parent, order_index: 1)
 
       expect { dup.save!(validate: false) }.to raise_error(ActiveRecord::RecordNotUnique)
     end
@@ -97,20 +115,19 @@ RSpec.describe Wordbook, type: :model do
 
     it "親を discard! しても子（章）は連動しない（self のみ）" do
       parent = create(:wordbook, :official)
-      child = create(:wordbook, :official, parent: parent, part: "Day 1", order_index: 1)
+      child = create(:wordbook, :official, parent: parent, order_index: 1)
       parent.discard!
       expect(child.reload.discarded?).to be(false)
     end
 
-    it "章の #discard! は part / order_index を明け渡し、同じ値で章を再作成できる" do
+    it "章の #discard! は order_index を明け渡し、同じ値で章を再作成できる" do
       parent = create(:wordbook, :official)
-      chapter = create(:wordbook, :official, parent: parent, part: "1", order_index: 1)
+      chapter = create(:wordbook, :official, parent: parent, order_index: 1)
 
       chapter.discard!
 
-      expect(chapter.reload.part).to be_nil
-      expect(chapter.order_index).to be_nil
-      recreated = create(:wordbook, :official, parent: parent, part: "1", order_index: 1)
+      expect(chapter.reload.order_index).to be_nil
+      recreated = create(:wordbook, :official, parent: parent, order_index: 1)
       expect(recreated).to be_persisted
     end
 

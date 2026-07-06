@@ -92,14 +92,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_27_080715) do
     t.string "level"
     t.integer "order_index"
     t.bigint "parent_id"
-    t.string "part"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id"
     t.integer "words_count", default: 0, null: false
     t.index ["deleted_at"], name: "index_wordbooks_on_deleted_at"
     t.index ["parent_id", "order_index"], name: "index_wordbooks_on_parent_id_and_order_index", unique: true
-    t.index ["parent_id", "part"], name: "index_wordbooks_on_parent_id_and_part", unique: true
     t.index ["parent_id"], name: "index_wordbooks_on_parent_id"
     t.index ["user_id"], name: "index_wordbooks_on_user_id"
   end

@@ -13,6 +13,19 @@ module Types
     field :public_wordbook, resolver: Resolvers::PublicWordbook,
       description: "公式単語帳の親 1 件（子＝章・単語まで。読み取り専用・要ログイン）"
 
+    # 公式単語帳の管理用取得（管理者専用）。閲覧用の publicWordbooks とは別に、
+    # 教材→章→単語を辿る管理導線として提供する。認可は各 Resolver の冒頭でガードする。
+    field :admin_wordbooks, resolver: Resolvers::AdminWordbooks,
+      description: "公式単語帳の教材一覧（管理者専用・論理削除を除く）"
+    field :admin_wordbook, resolver: Resolvers::AdminWordbook,
+      description: "公式単語帳 1 件（教材なら章、章なら単語まで。管理者専用）"
+
+    # 管理者ダッシュボード（管理者専用）。
+    field :admin_users, resolver: Resolvers::AdminUsers,
+      description: "ユーザー一覧（管理者専用・キーワード検索/並び替え/ページング対応）"
+    field :admin_stats, resolver: Resolvers::AdminStats,
+      description: "統計（ユーザー数・単語数など。管理者専用）"
+
     # 自作単語帳の閲覧（本人のみ・要ログイン）。current_user スコープで他人・公式を除外する。
     field :my_wordbooks, resolver: Resolvers::MyWordbooks,
       description: "自作単語帳の一覧（本人の personal のみ・論理削除を除く・要ログイン）"

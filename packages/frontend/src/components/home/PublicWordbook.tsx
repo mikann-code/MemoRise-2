@@ -9,6 +9,7 @@ import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import { SectionTitle, Button, LoadingSpinner } from "@/components/common/ui";
 import { useMeQuery } from "@/graphql/queries/me";
 import { usePublicWordbooksQuery } from "@/graphql/queries/publicWordbooks";
+import { levelLabel } from "@/constants/wordbookLevels";
 
 /**
  * 公式単語帳（ホーム）。未ログイン時はログイン導線カードに差し替え（v1 踏襲）。
@@ -160,7 +161,7 @@ export default function PublicWordbook() {
                     textAlign: "center",
                   }}
                 >
-                  {item.level}
+                  {levelLabel(item.level)}
                 </Typography>
               )}
             </Box>

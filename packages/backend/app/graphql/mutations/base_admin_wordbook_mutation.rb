@@ -24,10 +24,10 @@ module Mutations
       [ { field: "id", message: "対象の公式単語帳が見つかりません" } ]
     end
 
-    # DB のユニーク制約違反（同一親内の part / order_index 重複）。
+    # DB のユニーク制約違反（同一親内の order_index 重複）。
     # モデルに uniqueness バリデーションは置いていないため、ここで拾って表示用エラーに変換する。
     def duplicate_errors
-      [ { field: "system", message: "同じ親の中で章（part）または並び順（orderIndex）が重複しています" } ]
+      [ { field: "system", message: "同じ親の中で並び順（orderIndex）が重複しています" } ]
     end
 
     # ActiveRecord のバリデーションエラーを field 単位の表示用エラーへ変換する。

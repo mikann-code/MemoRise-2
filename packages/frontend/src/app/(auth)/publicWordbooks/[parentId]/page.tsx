@@ -126,7 +126,8 @@ export default function PublicWordbookParentPage() {
       >
         {parts.map((part, index) => {
           const prevCompleted = index > 0 && parts[index - 1].completed;
-          const chapterLabel = part.part ? `第${part.part}章` : part.title;
+          // 章番号は持たず、order_index 昇順の並び位置から「第○章」を導出する
+          const chapterLabel = `第${index + 1}章`;
 
           return (
             <Box

@@ -41,7 +41,7 @@ RSpec.describe Mutations::DeleteAdminWordbook do
 
     it "章（子）も単体で論理削除できる" do
       parent = create(:wordbook, :official)
-      chapter = create(:wordbook, :official, parent_id: parent.id, part: "1")
+      chapter = create(:wordbook, :official, parent_id: parent.id, order_index: 1)
 
       data = execute_delete({ id: chapter.id.to_s })
 

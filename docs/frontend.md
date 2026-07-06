@@ -12,9 +12,10 @@ App Router の Route Group `(xxx)` で、URL に出さずに権限ごとに空�
 | --- | --- | --- |
 | `(public)` | 不要 | `/login`、`/signup` |
 | `(auth)` | 必須 | `/`（ホーム）、`/publicWordbooks`、`/publicWordbooks/[parentId]`、`/publicWordbooks/[parentId]/[childrenId]/list`、`/publicWordbooks/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`（復習単語一覧）、`/wordbooks/review/test`（復習専用テスト）、`/study-records`（学習記録）、`/my-page`（マイページ）、`/my-page/edit`（プロフィール編集） |
-| `(admin)` | 管理者 | `/admin-login`、`/admin` |
+| `(admin)` | 管理者 | `/admin-login`、`/admin`（ダッシュボード）、`/admin/wordbooks`、`/admin/wordbooks/new`、`/admin/wordbooks/[id]`（章・単語の管理）、`/admin/wordbooks/[id]/edit`、`/admin/wordbooks/[id]/import`（CSV 一括登録）、`/admin/users`、`/admin/stats` |
 
-未実装（今後追加予定）：`/admin/users`、`/admin/wordbooks` 配下。
+- 管理空間は共通 Header を持たないため、各ページは `Container` と共通の戻り導線ヘッダ（`(admin)/admin/_components/AdminPageHeader`）で構成する。
+- 公式単語帳は「教材（トップレベル）→ 章（children）→ 単語」を `/admin/wordbooks/[id]` の遷移で辿る。章も単語帳なので同じ詳細画面で管理するが、単語を登録できるのは章のみ（教材は章の入れ物で単語を直接持たない。教材では章の一覧・追加フォームを、章では単語フォーム・CSV 取込を出し分ける。バックエンド側も教材への単語登録を拒否する）。教材を作成すると既定の章「第1章」がバックエンドで自動作成されるため、詳細画面には最初から章が 1 つ並ぶ。
 
 - 親子単語帳は `/[parentId]/[childrenId]` の二段ルーティングで「TOEIC > Day 1」のような体系を表現。
 - `(auth)` は `AuthProvider`（`me` クエリ）でガードし、未認証は `/login` へリダイレクト。`(admin)` は `AdminAuthProvider`（`adminMe`）で同様にガードする。

@@ -92,10 +92,10 @@ module Mutations
     end
 
     # 学習記録に表示する名前。復習専用テストは固定名、
-    # 公式の章は「親タイトル + part」（v1 踏襲）、自作は単語帳名。
+    # 公式の章は「親タイトル + 章タイトル」、自作は単語帳名。
     def detail_title(kind, wordbook)
       return "復習テスト" if kind == "review"
-      return "#{wordbook.parent.title} #{wordbook.part}" if wordbook.parent
+      return "#{wordbook.parent.title} #{wordbook.title}" if wordbook.parent
 
       wordbook.title
     end

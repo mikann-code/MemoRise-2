@@ -4,7 +4,13 @@ class Wordbook < ApplicationRecord
   # （未知ラベルはフロントのどのセクションにも入らず一覧から消えるため、DB 側で防ぐ）。
   # 表示名・並び順はプレゼンの関心なのでフロント（packages/frontend/src/constants/wordbookLabels.ts）が持つ。
   # 任意項目（自作単語帳は nil）で、値 "official" が kind と衝突するため enum ではなく定数＋inclusion で扱う。
-  LABELS = %w[none junior_high high_school eiken toeic toefl daily official].freeze
+  LABELS = %w[junior_high high_school eiken toeic toefl daily official].freeze
+
+  # 公式単語帳の難易度レベル（許可する値の集合）。同じ label（英検 / TOEIC 等）の中で
+  # 教材を段階分け（基礎 → 標準 → 発展）し、同カテゴリ内で挑戦度を選び分けるために使う。
+  # label と同じく「値として何が正しいか」＝ドメイン整合性の源泉はここ。inclusion で未知の値を弾く。
+  # 表示名（基礎 / 標準 / 発展）はプレゼンの関心なのでフロント（constants/wordbookLevels.ts）が持つ。
+  LEVELS = %w[basic standard advanced].freeze
 
   # 単語帳の種類。
   # official = 公式（運営が用意 / user_id なし）、
@@ -26,6 +32,9 @@ class Wordbook < ApplicationRecord
   # label は任意。official はカテゴリ分類なので LABELS のいずれかに限定する。
   # personal は v1 と同じ自由入力（例: 英語 / IT / TOEIC）のため inclusion を掛けない。
   validates :label, inclusion: { in: LABELS }, allow_nil: true, if: :official?
+  # level も任意。official は難易度の段階分類なので LEVELS のいずれかに限定する
+  # （personal は level を使わないため対象外）。
+  validates :level, inclusion: { in: LEVELS }, allow_nil: true, if: :official?
 
   # --- 論理削除（self のみ） ---
   # 単語帳を「ゴミ箱」に入れる方式。deleted_at に印を付けるだけで words は消さないため、
@@ -40,15 +49,15 @@ class Wordbook < ApplicationRecord
 
   # validation / callback を介さない軽量更新（User#update_streak! と同じ方針）。
   # updated_at も明示的に更新する。
-  # 章（parent_id あり）は一意制約 (parent_id, part) / (parent_id, order_index) の席を
-  # 占有し続けると同じ part での再作成を DB レベルでブロックするため、論理削除時に
-  # part / order_index を NULL にして席を明け渡す（復元時は part / order_index を振り直す運用）。
+  # 章（parent_id あり）は一意制約 (parent_id, order_index) の席を占有し続けると
+  # 同じ並び順での再作成を DB レベルでブロックするため、論理削除時に order_index を
+  # NULL にして席を明け渡す（復元時は order_index を振り直す運用）。
   # 親（parent_id: nil）は PostgreSQL が NULL を含む組を重複とみなさず席が競合しないため、
   # 並び順（order_index）を保持したまま復元できるように残す。
   def discard!
     return if discarded?
 
-    freed = parent_id.present? ? { part: nil, order_index: nil } : {}
+    freed = parent_id.present? ? { order_index: nil } : {}
     update_columns(deleted_at: Time.current, updated_at: Time.current, **freed)
   end
 

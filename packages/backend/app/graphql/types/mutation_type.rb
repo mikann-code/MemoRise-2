@@ -16,6 +16,16 @@ module Types
     field :delete_admin_wordbook, mutation: Mutations::DeleteAdminWordbook,
       description: "公式単語帳の削除（管理者専用・論理削除）"
 
+    # 公式単語帳の単語 CRUD（管理者専用）。教材・章どちらの公式単語帳も対象。
+    field :create_admin_word, mutation: Mutations::CreateAdminWord,
+      description: "公式単語帳への単語の追加（管理者専用）"
+    field :update_admin_word, mutation: Mutations::UpdateAdminWord,
+      description: "公式単語帳の単語の更新（管理者専用）"
+    field :delete_admin_word, mutation: Mutations::DeleteAdminWord,
+      description: "公式単語帳の単語の削除（管理者専用・物理削除）"
+    field :import_csv, mutation: Mutations::ImportCsv,
+      description: "公式単語帳への単語の CSV 一括登録（管理者専用・行番号付きエラー）"
+
     # 自作単語帳の CRUD（一般ユーザー専用）。閲覧は Query 側の myWordbooks / myWordbook。
     field :create_wordbook, mutation: Mutations::CreateWordbook,
       description: "自作単語帳の作成（要ログイン）"

@@ -8,8 +8,8 @@ RSpec.describe Resolvers::PublicWordbook do
     <<~GQL
       query($id: ID!) {
         publicWordbook(id: $id) {
-          id title label part
-          children { id title part wordsCount words { id question answer } }
+          id title label
+          children { id title orderIndex wordsCount words { id question answer } }
         }
       }
     GQL
@@ -18,14 +18,14 @@ RSpec.describe Resolvers::PublicWordbook do
   describe "正常系" do
     it "公式の親と、その子（章）・単語を読み取り専用で返す" do
       parent = create(:wordbook, :official, title: "TOEIC", label: "toeic")
-      chapter = create(:wordbook, :official, title: "Day1", part: "1", parent_id: parent.id, order_index: 1)
+      chapter = create(:wordbook, :official, title: "Day1", parent_id: parent.id, order_index: 1)
       create(:word, wordbook: chapter, question: "apple", answer: "りんご")
 
       result = execute_graphql(query, variables: { id: parent.id.to_s }, context: { current_user: user })
       data = result.dig("data", "publicWordbook")
 
       expect(data["title"]).to eq("TOEIC")
-      expect(data.dig("children", 0, "part")).to eq("1")
+      expect(data.dig("children", 0, "orderIndex")).to eq(1)
       expect(data.dig("children", 0, "wordsCount")).to eq(1)
       expect(data.dig("children", 0, "words", 0, "question")).to eq("apple")
       expect(data.dig("children", 0, "words", 0, "answer")).to eq("りんご")
@@ -33,9 +33,9 @@ RSpec.describe Resolvers::PublicWordbook do
 
     it "子（章）は論理削除を除外し order_index 昇順で返す" do
       parent = create(:wordbook, :official)
-      create(:wordbook, :official, title: "Day2", part: "2", parent_id: parent.id, order_index: 2)
-      create(:wordbook, :official, title: "Day1", part: "1", parent_id: parent.id, order_index: 1)
-      create(:wordbook, :official, :discarded, title: "削除章", part: "3", parent_id: parent.id, order_index: 3)
+      create(:wordbook, :official, title: "Day2", parent_id: parent.id, order_index: 2)
+      create(:wordbook, :official, title: "Day1", parent_id: parent.id, order_index: 1)
+      create(:wordbook, :official, :discarded, title: "削除章", parent_id: parent.id, order_index: 3)
 
       result = execute_graphql(query, variables: { id: parent.id.to_s }, context: { current_user: user })
       titles = result.dig("data", "publicWordbook", "children").map { |c| c["title"] }
