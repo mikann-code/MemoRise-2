@@ -17,6 +17,18 @@ RSpec.describe Wordbook, type: :model do
         expect(build(:wordbook, label: "IT")).to be_valid
       end
     end
+
+    context "level が official の場合（難易度の段階分類）" do
+      subject { build(:wordbook, :official) }
+
+      it { is_expected.to validate_inclusion_of(:level).in_array(Wordbook::LEVELS).allow_nil }
+    end
+
+    context "level が personal の場合" do
+      it "LEVELS に無い値でも検証対象外で保存できる（level は official 専用）" do
+        expect(build(:wordbook, level: "なんでも")).to be_valid
+      end
+    end
   end
 
   describe "関連" do
@@ -43,6 +55,12 @@ RSpec.describe Wordbook, type: :model do
       expect(Wordbook::LABELS).to eq(
         %w[none junior_high high_school eiken toeic toefl daily official]
       )
+    end
+  end
+
+  describe "LEVELS 定数（難易度分類）" do
+    it "許可するレベル値の集合を順序どおり持つ（フロント WORDBOOK_LEVELS と一致）" do
+      expect(Wordbook::LEVELS).to eq(%w[basic standard advanced])
     end
   end
 

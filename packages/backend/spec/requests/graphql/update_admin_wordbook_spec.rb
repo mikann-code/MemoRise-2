@@ -30,7 +30,7 @@ RSpec.describe Mutations::UpdateAdminWordbook do
 
   describe "正常系" do
     it "渡した項目のみを部分更新する（未指定の項目は変えない）" do
-      wordbook = create(:wordbook, :official, title: "旧タイトル", label: "toeic", level: "初級")
+      wordbook = create(:wordbook, :official, title: "旧タイトル", label: "toeic", level: "basic")
 
       data = execute_update({ id: wordbook.id.to_s, title: "新タイトル", description: "新説明" })
 
@@ -41,23 +41,23 @@ RSpec.describe Mutations::UpdateAdminWordbook do
       expect(wordbook.title).to eq("新タイトル")
       expect(wordbook.description).to eq("新説明")
       expect(wordbook.label).to eq("toeic")
-      expect(wordbook.level).to eq("初級")
+      expect(wordbook.level).to eq("basic")
     end
 
     it "親の label / level 変更は子（章）へ伝播する（論理削除済みの章にも）" do
-      parent = create(:wordbook, :official, label: "eiken", level: "3")
+      parent = create(:wordbook, :official, label: "eiken", level: "basic")
       chapter = create(:wordbook, :official, parent_id: parent.id, order_index: 1,
-                       label: "eiken", level: "3")
+                       label: "eiken", level: "basic")
       discarded_chapter = create(:wordbook, :official, :discarded, parent_id: parent.id,
-                                 label: "eiken", level: "3")
+                                 label: "eiken", level: "basic")
 
-      data = execute_update({ id: parent.id.to_s, label: "toeic", level: "600" })
+      data = execute_update({ id: parent.id.to_s, label: "toeic", level: "advanced" })
 
       expect(data["success"]).to be(true)
       expect(chapter.reload.label).to eq("toeic")
-      expect(chapter.level).to eq("600")
+      expect(chapter.level).to eq("advanced")
       expect(discarded_chapter.reload.label).to eq("toeic")
-      expect(discarded_chapter.level).to eq("600")
+      expect(discarded_chapter.level).to eq("advanced")
     end
 
     it "親の title 更新だけでは子へ伝播しない" do

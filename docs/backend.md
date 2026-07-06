@@ -46,8 +46,8 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 | user_id | bigint | nil = 公式 / 値あり = 自作 |
 | is_official | boolean | default false |
 | parent_id | bigint | 自己参照（親子階層） |
-| label | string | junior_high / eiken / toeic / official 等 |
-| level | string | |
+| label | string | 公式のカテゴリ分類。`Wordbook::LABELS`（junior_high / eiken / toeic / official 等）に inclusion（official のみ・任意） |
+| level | string | 公式の難易度分類。`Wordbook::LEVELS`（basic / standard / advanced）に inclusion（official のみ・任意）。同一 label 内の段階分け用 |
 | order_index | integer | 章の並び順（表示番号「第○章」はフロントが並び位置から導出） |
 | last_studied | datetime | 「最近学習した順」ソート用 |
 | deleted_at | datetime | 論理削除 |

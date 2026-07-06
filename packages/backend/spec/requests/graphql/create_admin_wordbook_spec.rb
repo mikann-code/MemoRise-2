@@ -31,7 +31,7 @@ RSpec.describe Mutations::CreateAdminWordbook do
   describe "正常系" do
     it "親（教材）を公式単語帳として作成する" do
       data = execute_create(
-        { title: "TOEIC 基礎", description: "説明", label: "toeic", level: "初級" }
+        { title: "TOEIC 基礎", description: "説明", label: "toeic", level: "basic" }
       )
 
       expect(data["success"]).to be(true)
@@ -46,7 +46,7 @@ RSpec.describe Mutations::CreateAdminWordbook do
     end
 
     it "親の作成時に既定の章「第1章」を 1 つ自動作成する（label / level は親を引き継ぐ）" do
-      data = execute_create({ title: "TOEIC 基礎", label: "toeic", level: "初級" })
+      data = execute_create({ title: "TOEIC 基礎", label: "toeic", level: "basic" })
 
       created = Wordbook.find(data.dig("wordbook", "id"))
       expect(created.children.count).to eq(1)
@@ -54,13 +54,13 @@ RSpec.describe Mutations::CreateAdminWordbook do
       expect(chapter.title).to eq("第1章")
       expect(chapter.order_index).to eq(1)
       expect(chapter.label).to eq("toeic")
-      expect(chapter.level).to eq("初級")
+      expect(chapter.level).to eq("basic")
       expect(chapter.official?).to be(true)
       expect(chapter.user_id).to be_nil
     end
 
     it "parentId 指定で章（子）を作成し、label / level 省略時は親から引き継ぐ" do
-      parent = create(:wordbook, :official, label: "eiken", level: "3")
+      parent = create(:wordbook, :official, label: "eiken", level: "basic")
 
       data = execute_create(
         { title: "第1章", parentId: parent.id.to_s, orderIndex: 1 }
@@ -70,7 +70,7 @@ RSpec.describe Mutations::CreateAdminWordbook do
       created = Wordbook.find(data.dig("wordbook", "id"))
       expect(created.parent_id).to eq(parent.id)
       expect(created.label).to eq("eiken")
-      expect(created.level).to eq("3")
+      expect(created.level).to eq("basic")
       expect(created.order_index).to eq(1)
       # 既定の章の自動作成は親の作成時のみ（章の下に章は作らない）
       expect(created.children).to be_empty
