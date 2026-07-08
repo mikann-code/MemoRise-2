@@ -12,4 +12,7 @@ Rails.application.configure do
 
   # 本番は HTTPS 前提
   config.force_ssl = ENV["DISABLE_FORCE_SSL"].blank?
+  # ただしヘルスチェック /up は https リダイレクトから除外する
+  # （Render のヘルスチェックは内部から HTTP で来るため、301 を返すと unhealthy 扱いになる）
+  config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 end
