@@ -3,9 +3,10 @@
 import { startTransition, use, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { Button, LoadingSpinner } from "@/components/common/ui";
+import { Button, LoadingContainer } from "@/components/common/ui";
 import { useMyWordbookQuery } from "@/graphql/queries/myWordbook";
 import WordbookTest from "@/components/feature/WordbookTest";
+import { ANIM_ENTER_MS, ANIM_EASE_OUT } from "@/constants/ui";
 
 type Word = { id: string; question: string; answer: string };
 
@@ -55,7 +56,7 @@ function EmptyState({
             from: { opacity: 0, transform: "translateY(24px)" },
             to: { opacity: 1, transform: "translateY(0)" },
           },
-          animation: "empty-state-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both",
+          animation: `empty-state-in ${ANIM_ENTER_MS}ms ${ANIM_EASE_OUT} both`,
         }}
       >
         <Typography sx={{ fontSize: 16, color: "var(--color-font-primary)" }}>
@@ -95,9 +96,7 @@ export default function WordbookTestPage({ params }: Props) {
 
   if (loading && !data) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 
@@ -125,9 +124,7 @@ export default function WordbookTestPage({ params }: Props) {
   // startTransition の反映待ち（シャッフル前の順で出題しない）
   if (shuffledWords.length === 0) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 

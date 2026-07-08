@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import { SectionTitle, LoadingSpinner, Button } from "@/components/common/ui";
+import { SectionTitle, LoadingContainer, Button } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { usePublicWordbookChaptersQuery } from "@/graphql/queries/publicWordbookChapters";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
@@ -26,16 +26,14 @@ export default function PublicWordbookListChapterPage() {
     variables: { id: parentId },
   });
   const { isTagged, toggleTag } = useReviewTags();
-  const { confirm } = useSnackbar();
+  const { confirm, notify } = useSnackbar();
 
   const chapter =
     data?.publicWordbook?.children.find((c) => c.id === childrenId) ?? null;
 
   if (loading) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 
@@ -71,8 +69,7 @@ export default function PublicWordbookListChapterPage() {
       ? "この単語を復習リストの登録から外しますか？"
       : "この単語を復習リストに登録しますか？";
     if (!(await confirm(message))) return;
-    // 失敗時は表示が変わらないだけなので握りつぶす（再操作できる）。
-    await toggleTag(wordId).catch(() => {});
+    await toggleTag(wordId).catch(() => notify("復習リストの更新に失敗しました"));
   };
 
   return (

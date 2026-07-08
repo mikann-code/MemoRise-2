@@ -70,6 +70,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_27_080715) do
   end
 
   create_table "users", force: :cascade do |t|
+    t.datetime "confirmation_sent_at"
+    t.string "confirmation_token"
+    t.datetime "confirmed_at"
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.date "last_study_date"
@@ -80,6 +83,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_27_080715) do
     t.datetime "updated_at", null: false
     t.integer "words_count", default: 0, null: false
     t.index "lower((email)::text)", name: "index_users_on_lower_email", unique: true
+    t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
   end
 
   create_table "wordbooks", force: :cascade do |t|

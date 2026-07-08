@@ -12,6 +12,7 @@ import {
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import ButtonBase from "@mui/material/ButtonBase";
+import { ANIM_EASE_OUT, ANIM_ENTER_MS, NOTIFY_DURATION_MS } from "@/constants/ui";
 
 /**
  * window.confirm / window.alert の代替となる自作 UI。
@@ -43,8 +44,7 @@ type ConfirmState = {
   resolve: (ok: boolean) => void;
 };
 
-const NOTIFY_DURATION_MS = 1000;
-const ENTER_ANIMATION = "300ms cubic-bezier(0.22, 1, 0.36, 1) both";
+const ENTER_ANIMATION = `${ANIM_ENTER_MS}ms ${ANIM_EASE_OUT} both`;
 const EXIT_ANIMATION_MS = 200;
 
 const overlaySx = {

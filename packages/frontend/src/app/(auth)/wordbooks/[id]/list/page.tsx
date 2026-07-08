@@ -13,7 +13,8 @@ import {
   SectionTitle,
   Button,
   FloatingInput,
-  LoadingSpinner,
+  FormError,
+  LoadingContainer,
 } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useMyWordbookQuery } from "@/graphql/queries/myWordbook";
@@ -22,6 +23,11 @@ import { useUpdateWordMutation } from "@/graphql/mutations/updateWord";
 import { useDeleteWordMutation } from "@/graphql/mutations/deleteWord";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
+import {
+  pickFieldError,
+  pickSystemError,
+  type FieldError,
+} from "@/lib/forms/fieldErrors";
 
 /**
  * 自作単語帳の単語一覧（v1 の /wordbooks/[id]/list を忠実に再現）。
@@ -30,17 +36,9 @@ import { useSnackbar } from "@/components/feature/SnackbarProvider";
  * v1 に無い単語の編集は、カードの編集アイコン → その場でインライン編集フォームに切り替える。
  */
 
-// サーバーの errors 配列をそのまま持ち、表示時に field 名で引く。
-// 追加フォームとインライン編集フォームで errors state が 2 つあるため、引く側を関数にしておく。
-type FieldError = { field: string; message: string };
-
-const findFieldError = (errors: FieldError[], field: string) =>
-  errors.find((e) => e.field === field)?.message;
-
-// 2 つの入力欄に紐付かないエラー（認証失敗の "system"、対象なしの "id" など）は
-// フォーム下にまとめて出す。
-const findSystemError = (errors: FieldError[]) =>
-  errors.find((e) => !["question", "answer"].includes(e.field))?.message;
+// 単語フォームの入力欄に対応する field。これ以外（system / id 等）は systemError にまとめる。
+// 追加フォームとインライン編集フォームで errors state が 2 つあるため、引き手は共通の純関数を使う。
+const WORD_FIELDS = ["question", "answer"];
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -60,7 +58,7 @@ export default function WordbookDetailPage({ params }: Props) {
   const [deleteWord] = useDeleteWordMutation();
 
   const { isTagged, toggleTag } = useReviewTags();
-  const { confirm } = useSnackbar();
+  const { confirm, notify } = useSnackbar();
 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -72,8 +70,8 @@ export default function WordbookDetailPage({ params }: Props) {
   const [editAnswer, setEditAnswer] = useState("");
   const [editErrors, setEditErrors] = useState<FieldError[]>([]);
 
-  const systemError = findSystemError(errors);
-  const editSystemError = findSystemError(editErrors);
+  const systemError = pickSystemError(errors, WORD_FIELDS);
+  const editSystemError = pickSystemError(editErrors, WORD_FIELDS);
 
   // ホームの「作成する / テストする」タイルが最後に使った単語帳へ直行するためのキー（CraftWord 参照）。
   useEffect(() => {
@@ -82,9 +80,7 @@ export default function WordbookDetailPage({ params }: Props) {
 
   if (loading && !data) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 
@@ -192,10 +188,11 @@ export default function WordbookDetailPage({ params }: Props) {
 
   const handleDelete = async (wordId: string) => {
     try {
-      await deleteWord({ variables: { id: wordId } });
+      const { data: result } = await deleteWord({ variables: { id: wordId } });
+      if (!result?.deleteWord?.success) notify("削除に失敗しました");
       await refetch();
     } catch {
-      // 失敗時は一覧が変わらないだけなので黙って握りつぶさず再取得だけ試みる
+      notify("削除に失敗しました");
       await refetch();
     }
   };
@@ -207,8 +204,7 @@ export default function WordbookDetailPage({ params }: Props) {
       ? "この単語を復習リストの登録から外しますか？"
       : "この単語を復習リストに登録しますか？";
     if (!(await confirm(message))) return;
-    // 失敗時は表示が変わらないだけなので握りつぶす（再操作できる）。
-    await toggleTag(wordId).catch(() => {});
+    await toggleTag(wordId).catch(() => notify("復習リストの更新に失敗しました"));
   };
 
   return (
@@ -270,7 +266,7 @@ export default function WordbookDetailPage({ params }: Props) {
             onChange={(e) => setQuestion(e.target.value)}
             disabled={adding}
             labelIcon={<HelpOutlineIcon />}
-            error={findFieldError(errors, "question")}
+            error={pickFieldError(errors, "question")}
           />
 
           <FloatingInput
@@ -280,14 +276,10 @@ export default function WordbookDetailPage({ params }: Props) {
             onChange={(e) => setAnswer(e.target.value)}
             disabled={adding}
             labelIcon={<LightbulbOutlinedIcon />}
-            error={findFieldError(errors, "answer")}
+            error={pickFieldError(errors, "answer")}
           />
 
-          {systemError && (
-            <Typography sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}>
-              {systemError}
-            </Typography>
-          )}
+          <FormError message={systemError} />
 
           <Box sx={{ display: "flex", gap: "10px" }}>
             <Box sx={{ flex: 1 }}>
@@ -356,7 +348,7 @@ export default function WordbookDetailPage({ params }: Props) {
                   onChange={(e) => setEditQuestion(e.target.value)}
                   disabled={updating}
                   labelIcon={<HelpOutlineIcon />}
-                  error={findFieldError(editErrors, "question")}
+                  error={pickFieldError(editErrors, "question")}
                 />
                 <FloatingInput
                   id={`edit-answer-${word.id}`}
@@ -365,15 +357,9 @@ export default function WordbookDetailPage({ params }: Props) {
                   onChange={(e) => setEditAnswer(e.target.value)}
                   disabled={updating}
                   labelIcon={<LightbulbOutlinedIcon />}
-                  error={findFieldError(editErrors, "answer")}
+                  error={pickFieldError(editErrors, "answer")}
                 />
-                {editSystemError && (
-                  <Typography
-                    sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}
-                  >
-                    {editSystemError}
-                  </Typography>
-                )}
+                <FormError message={editSystemError} />
                 <Box sx={{ display: "flex", gap: "10px" }}>
                   <Box sx={{ flex: 1 }}>
                     <Button type="submit" disabled={updating}>

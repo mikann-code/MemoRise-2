@@ -123,6 +123,19 @@ async function mockGraphql(page: Page) {
       return;
     }
 
+    // 削除は常に失敗を返し、握りつぶさず通知が出ることを検証する。
+    if (op === "DeleteWord") {
+      await json({
+        deleteWord: {
+          success: false,
+          errors: [],
+          word: null,
+          __typename: "DeleteWordPayload",
+        },
+      });
+      return;
+    }
+
     await json({ me: null });
   });
 }
@@ -170,4 +183,28 @@ test("単語帳を作成して単語を登録できる（代表導線）", async
   await expect(page.getByText("apple")).toBeVisible();
   await expect(page.getByText("りんご")).toBeVisible();
   await expect(page.getByText("登録単語数：1")).toBeVisible();
+});
+
+test("単語の削除に失敗したら通知が出る（握りつぶさない）", async ({ page }) => {
+  await mockGraphql(page);
+
+  // 単語帳を作成し、単語を 1 件登録してから削除を試みる
+  await page.goto("/wordbooks");
+  await page.getByRole("link", { name: "＋ 新しい単語帳" }).click();
+  await page.getByLabel("単語帳タイトル").fill("削除テスト帳");
+  await page.getByRole("button", { name: "作成", exact: true }).click();
+
+  await page.getByRole("link", { name: /削除テスト帳/ }).click();
+  await page.getByLabel("単語", { exact: true }).fill("apple");
+  await page.getByLabel("意味", { exact: true }).fill("りんご");
+  await page.getByRole("button", { name: "単語を登録" }).click();
+  await expect(page.getByText("apple")).toBeVisible();
+
+  // 削除アイコン → 確認モーダルで OK。サーバーは失敗を返す。
+  await page.getByRole("button", { name: "削除" }).click();
+  await page.getByRole("button", { name: "OK" }).click();
+
+  // 握りつぶさず失敗通知が出て、単語はカードに残る
+  await expect(page.getByText("削除に失敗しました")).toBeVisible();
+  await expect(page.getByText("apple")).toBeVisible();
 });

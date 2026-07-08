@@ -14,20 +14,20 @@ import {
   SectionTitle,
   Button,
   FloatingInput,
-  LoadingSpinner,
+  FormError,
+  LoadingContainer,
 } from "@/components/common/ui";
 import { useMyWordbookQuery } from "@/graphql/queries/myWordbook";
 import { useUpdateWordbookMutation } from "@/graphql/mutations/updateWordbook";
 import { useDeleteWordbookMutation } from "@/graphql/mutations/deleteWordbook";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
+import { useFieldErrors } from "@/lib/forms/fieldErrors";
 
 /**
  * 自作単語帳の編集（v1 の /wordbooks/[id]/edit を忠実に再現）。
  * 作成と同じ 3 項目（プリフィル済み）＋フォーム下に赤枠ピルの削除ボタン。
  * 削除はスナックバー確認後に論理削除して一覧へ戻る。
  */
-
-type FieldError = { field: string; message: string };
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -51,15 +51,11 @@ export default function EditWordbookPage({ params }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [label, setLabel] = useState("");
-  // サーバーの errors 配列をそのまま持ち、表示時に field 名で引く。
-  const [errors, setErrors] = useState<FieldError[]>([]);
-  const fieldError = (field: string) =>
-    errors.find((e) => e.field === field)?.message;
-  // 3 つの入力欄に紐付かないエラー（認証失敗の "system"、対象なしの "id" など）は
-  // フォーム下にまとめて出す。
-  const systemError = errors.find(
-    (e) => !["title", "description", "label"].includes(e.field),
-  )?.message;
+  const { setErrors, fieldError, systemError } = useFieldErrors([
+    "title",
+    "description",
+    "label",
+  ]);
 
   // 取得済みデータでフォームを一度だけ初期化する（レンダー中の状態調整パターン）。
   // cache-and-network で 2 回データが届いても編集中の入力を上書きしない。
@@ -73,9 +69,7 @@ export default function EditWordbookPage({ params }: Props) {
 
   if (loading && !data) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 
@@ -179,13 +173,7 @@ export default function EditWordbookPage({ params }: Props) {
               error={fieldError("label")}
             />
 
-            {systemError && (
-              <Typography
-                sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}
-              >
-                {systemError}
-              </Typography>
-            )}
+            <FormError message={systemError} />
 
             <Button type="submit" disabled={isPending}>
               {updating ? "更新中..." : "保存"}

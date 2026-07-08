@@ -7,7 +7,7 @@ import Typography from "@mui/material/Typography";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import { SectionTitle, LoadingSpinner, Button } from "@/components/common/ui";
+import { SectionTitle, LoadingContainer, Button } from "@/components/common/ui";
 import { usePublicWordbookQuery } from "@/graphql/queries/publicWordbook";
 import { useWordbookProgressesQuery } from "@/graphql/queries/wordbookProgresses";
 
@@ -33,9 +33,7 @@ export default function PublicWordbookParentPage() {
 
   if (loading || progressLoading) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 

@@ -9,16 +9,20 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import NotesIcon from "@mui/icons-material/Notes";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import { FormLayout } from "@/components/layout";
-import { SectionTitle, Button, FloatingInput } from "@/components/common/ui";
+import {
+  SectionTitle,
+  Button,
+  FloatingInput,
+  FormError,
+} from "@/components/common/ui";
 import { useCreateWordbookMutation } from "@/graphql/mutations/createWordbook";
+import { useFieldErrors } from "@/lib/forms/fieldErrors";
 
 /**
  * 自作単語帳の作成（v1 の /wordbooks/new を忠実に再現）。
  * タイトル / 説明（任意）/ ラベル（自由入力）の 3 項目。
  * タイトル必須はクライアントで先に検証し、サーバーの {success, errors} は field 単位で表示する。
  */
-
-type FieldError = { field: string; message: string };
 
 export default function NewWordbookPage() {
   const router = useRouter();
@@ -27,14 +31,11 @@ export default function NewWordbookPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [label, setLabel] = useState("");
-  // サーバーの errors 配列をそのまま持ち、表示時に field 名で引く。
-  const [errors, setErrors] = useState<FieldError[]>([]);
-  const fieldError = (field: string) =>
-    errors.find((e) => e.field === field)?.message;
-  // 3 つの入力欄に紐付かないエラー（認証失敗の "system" など）はフォーム下にまとめて出す。
-  const systemError = errors.find(
-    (e) => !["title", "description", "label"].includes(e.field),
-  )?.message;
+  const { setErrors, fieldError, systemError } = useFieldErrors([
+    "title",
+    "description",
+    "label",
+  ]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -106,11 +107,7 @@ export default function NewWordbookPage() {
             error={fieldError("label")}
           />
 
-          {systemError && (
-            <Typography sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}>
-              {systemError}
-            </Typography>
-          )}
+          <FormError message={systemError} />
 
           <Button type="submit" disabled={loading}>
             {loading ? "作成中..." : "作成"}

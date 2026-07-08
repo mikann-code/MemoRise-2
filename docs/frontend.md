@@ -37,8 +37,8 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 
 | 階層 | 役割 | 現状の中身 |
 | --- | --- | --- |
-| `common/ui/` | 汎用パーツ | Button / ButtonSecondary / FloatingInput / JudgeButtons / LoadingSpinner / SectionTitle |
-| `common/card/` | カード | WordCard / ErrorCard / DailyRecordCard（学習記録 1 日分） |
+| `common/ui/` | 汎用パーツ | Button / FloatingInput / FormError / JudgeButtons / LoadingSpinner / SectionTitle |
+| `common/card/` | カード | WordCard / WordbookShelf（単語帳の本棚表示）/ ErrorCard / DailyRecordCard（学習記録 1 日分） |
 | `layout/` | レイアウト | Layout（共通シェル）/ Header / Footer / FormLayout / WordbookListLayout |
 | `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / ReviewTagProvider / PublicWordbookTest / WordbookTest / StudyCalendar（学習カレンダー） |
 | `home/` | トップ専用 | DailyWord / PublicWordbook / CraftWord / WeeklyStreakCard |
@@ -70,7 +70,7 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | 公式単語帳 | 親一覧 → 子（章）→ 単語一覧 / テスト | publicWordbooks, publicWordbook.children, publicWordbook.words |
 | 自作単語帳 | 一覧 / 作成 / 編集 / 単語一覧 / テスト / 復習 | wordbooks, words, taggedWords |
 | 学習記録 `/study-records` | streak + 週ストリーク（月曜始まり）/ カレンダー（月送り・日別詳細）/ 直近一覧のタブ | me（streak）, studyRecords(year, month), studyRecordsWeek, studyRecordsRecent |
-| マイページ `/my-page` | streak / 登録単語数 / プロフィール編集 | me, totalWords |
+| マイページ `/my-page` | streak / 登録単語数 / プロフィール編集 | me（streak / wordsCount） |
 | 管理 `/admin/*` | 公式単語帳 CRUD / CSV / ユーザー一覧 / 統計 | adminWordbooks, adminUsers, adminStats |
 
 - 各ホームセクションは**自己完結ウィジェット**（内部でローディング・エラー・フォールバックを処理）。構成変更はセクションの並べ替えだけで済む。
@@ -107,7 +107,7 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | データ性質 | v1（React Query） | v2（Apollo） |
 | --- | --- | --- |
 | 頻繁に変わるリスト（wordbooks, taggedWords） | staleTime 未設定で常に最新 | `fetchPolicy: cache-and-network` |
-| 集計系（studyRecords, totalWords） | staleTime 60s | `cache-first`（適度に保持） |
+| 集計系（studyRecords） | staleTime 60s | `cache-first`（適度に保持） |
 | me 系 | retry: false | エラーポリシーで未認証時に即エラー表示 |
 | Mutation 後 | invalidateQueries で再取得 | `refetchQueries` / キャッシュ更新 |
 

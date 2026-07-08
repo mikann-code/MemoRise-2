@@ -6,8 +6,9 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
-import { SectionTitle, LoadingSpinner } from "@/components/common/ui";
+import { SectionTitle, LoadingContainer } from "@/components/common/ui";
 import StudyCalendar from "@/components/feature/StudyCalendar";
+import { MOBILE_QUERY } from "@/constants/ui";
 import DailyRecordCard from "@/components/common/card/DailyRecordCard";
 import { useCurrentUser } from "@/lib/auth/authContext";
 import { useStudyRecordsWeekQuery } from "@/graphql/queries/studyRecordsWeek";
@@ -23,7 +24,7 @@ const weekGrid = {
   justifyItems: "center",
   maxWidth: 540,
   mx: "auto",
-  "@media (max-width:768px)": { gap: 0 },
+  [MOBILE_QUERY]: { gap: 0 },
 };
 
 const streakItem = {
@@ -32,7 +33,7 @@ const streakItem = {
   alignItems: "center",
   gap: 0.75,
   p: "8px 12px",
-  "@media (max-width:768px)": { p: "8px 3px" },
+  [MOBILE_QUERY]: { p: "8px 3px" },
 };
 
 const dot = {
@@ -148,9 +149,7 @@ function RecentRecords() {
 
   if (loading) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 

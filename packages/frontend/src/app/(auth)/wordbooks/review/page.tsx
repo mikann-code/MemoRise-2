@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
 import { WordbookListLayout } from "@/components/layout";
-import { SectionTitle, Button, LoadingSpinner } from "@/components/common/ui";
+import { SectionTitle, Button, LoadingContainer } from "@/components/common/ui";
 import { WordCard, ErrorCard } from "@/components/common/card";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
@@ -28,9 +28,7 @@ export default function ReviewListPage() {
 
   if (loading && taggedWords.length === 0) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 

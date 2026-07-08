@@ -3,7 +3,7 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import CollectionsBookmarkOutlinedIcon from "@mui/icons-material/CollectionsBookmarkOutlined";
-import { SectionTitle, LoadingSpinner } from "@/components/common/ui";
+import { SectionTitle, LoadingContainer } from "@/components/common/ui";
 import { LabelSection } from "@/components/common/card";
 import { usePublicWordbooksQuery } from "@/graphql/queries/publicWordbooks";
 import { WORDBOOK_LABELS } from "@/constants/wordbookLabels";
@@ -20,9 +20,7 @@ export default function PublicWordbooksPage() {
 
   if (loading) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 

@@ -16,7 +16,7 @@ import TableSortLabel from "@mui/material/TableSortLabel";
 import TablePagination from "@mui/material/TablePagination";
 import Chip from "@mui/material/Chip";
 import SearchIcon from "@mui/icons-material/Search";
-import { LoadingSpinner } from "@/components/common/ui";
+import { LoadingContainer } from "@/components/common/ui";
 import { useAdminUsersQuery } from "@/graphql/queries/adminUsers";
 import { AdminUserSortField, SortOrder } from "@/gql/graphql";
 import dayjs from "@/lib/dayjs";
@@ -96,9 +96,7 @@ export default function AdminUsersPage() {
           ユーザーの取得に失敗しました。
         </Typography>
       ) : loading && !result ? (
-        <Box sx={{ position: "relative", minHeight: 160 }}>
-          <LoadingSpinner />
-        </Box>
+        <LoadingContainer />
       ) : (
         <TableContainer sx={{ background: "#1f1f1f", borderRadius: "14px" }}>
           <Table size="small">

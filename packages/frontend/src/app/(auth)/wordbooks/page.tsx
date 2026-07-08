@@ -8,9 +8,15 @@ import StarIcon from "@mui/icons-material/Star";
 import StickyNote2OutlinedIcon from "@mui/icons-material/StickyNote2Outlined";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { SectionTitle, LoadingSpinner, Button } from "@/components/common/ui";
+import {
+  SectionTitle,
+  LoadingContainer,
+  Button,
+  EmptyState,
+} from "@/components/common/ui";
 import { useMyWordbooksQuery } from "@/graphql/queries/myWordbooks";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
+import { MOBILE_QUERY } from "@/constants/ui";
 import dayjs from "@/lib/dayjs";
 
 /**
@@ -50,9 +56,7 @@ export default function WordbooksPage() {
 
   if (loading && !data) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 
@@ -84,7 +88,7 @@ export default function WordbooksPage() {
           sx={{
             display: "flex",
             gap: "4px",
-            "@media (max-width:768px)": {
+            [MOBILE_QUERY]: {
               flexDirection: "column",
               mt: "20px",
               gap: "8px",
@@ -108,9 +112,10 @@ export default function WordbooksPage() {
       </Box>
 
       {wordbooks.length === 0 && (
-        <Typography sx={{ color: "var(--color-font-secondary)" }}>
-          単語帳がありません。「 新しい単語帳 」から作成してください。
-        </Typography>
+        <EmptyState
+          icon={<ClassOutlinedIcon />}
+          title="単語帳がありません。「 新しい単語帳 」から作成してください。"
+        />
       )}
 
       <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0 }}>

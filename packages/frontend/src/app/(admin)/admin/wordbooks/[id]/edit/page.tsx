@@ -9,11 +9,17 @@ import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import NotesIcon from "@mui/icons-material/Notes";
-import { Button, FloatingInput, LoadingSpinner } from "@/components/common/ui";
+import {
+  Button,
+  FloatingInput,
+  FormError,
+  LoadingContainer,
+} from "@/components/common/ui";
 import { useAdminWordbookQuery } from "@/graphql/queries/adminWordbook";
 import { useUpdateAdminWordbookMutation } from "@/graphql/mutations/updateAdminWordbook";
 import { useDeleteAdminWordbookMutation } from "@/graphql/mutations/deleteAdminWordbook";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
+import { useFieldErrors } from "@/lib/forms/fieldErrors";
 import { WORDBOOK_LABELS } from "@/constants/wordbookLabels";
 import { WORDBOOK_LEVELS } from "@/constants/wordbookLevels";
 import AdminPageHeader from "../../../_components/AdminPageHeader";
@@ -23,8 +29,6 @@ import AdminPageHeader from "../../../_components/AdminPageHeader";
  * progress（章の解放順）と直結するため、ここでは編集しない（表示番号は並び位置から導出）。
  * 教材の label / level を変更すると、バックエンドで章へ伝播する。削除は論理削除。
  */
-
-type FieldError = { field: string; message: string };
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -50,7 +54,12 @@ export default function EditAdminWordbookPage({ params }: Props) {
   const [description, setDescription] = useState("");
   const [label, setLabel] = useState("");
   const [level, setLevel] = useState("");
-  const [errors, setErrors] = useState<FieldError[]>([]);
+  const { setErrors, fieldError, systemError } = useFieldErrors([
+    "title",
+    "description",
+    "label",
+    "level",
+  ]);
   const [initialized, setInitialized] = useState(false);
 
   if (wordbook && !initialized) {
@@ -61,17 +70,9 @@ export default function EditAdminWordbookPage({ params }: Props) {
     setLevel(wordbook.level ?? "");
   }
 
-  const fieldError = (field: string) =>
-    errors.find((e) => e.field === field)?.message;
-  const systemError = errors.find(
-    (e) => !["title", "description", "label", "level"].includes(e.field),
-  )?.message;
-
   if (loading && !data) {
     return (
-      <Box sx={{ position: "relative", minHeight: 200 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 
@@ -215,11 +216,7 @@ export default function EditAdminWordbookPage({ params }: Props) {
           ))}
         </TextField>
 
-        {systemError && (
-          <Typography sx={{ color: "var(--color-error)", fontSize: 14, mb: 2 }}>
-            {systemError}
-          </Typography>
-        )}
+        <FormError message={systemError} />
 
         <Box sx={{ display: "flex", gap: "10px" }}>
           <Box sx={{ flex: 1 }}>
@@ -232,8 +229,7 @@ export default function EditAdminWordbookPage({ params }: Props) {
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              color="#ef4444"
-              hoverColor="#dc2626"
+              variant="danger"
             >
               削除
             </Button>
