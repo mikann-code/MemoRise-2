@@ -55,3 +55,6 @@ Desktop.ini
 .DS_Store
 *.pem
 coverage/
+
+# deploy notes（接続文字列・認証情報を含むためコミット禁止）
+*.local.md

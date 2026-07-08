@@ -22,9 +22,11 @@ module MemoRise
     # Cookie には session_id のみを載せ、user_id 等は sessions テーブル側に保持する
     # （docs/tech-stack.md「セッション=activerecord-session_store（DB 管理）」）。
     config.middleware.use ActionDispatch::Cookies
+    # FE（Vercel）と BE（Render）は別ドメインになるため、本番はクロスサイトで
+    # Cookie を送るのに SameSite=None; Secure が必須（Lax だと送信されずログインが切れる）。
     config.middleware.use ActionDispatch::Session::ActiveRecordStore,
       key: "_memorise_session",
-      same_site: :lax,
+      same_site: Rails.env.production? ? :none : :lax,
       secure: Rails.env.production?,
       domain: ENV["SESSION_COOKIE_DOMAIN"]
 
