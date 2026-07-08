@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRenameOutlineOutlined";
 import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
-import { SectionTitle, Button, JudgeButtons } from "@/components/common/ui";
+import {
+  SectionTitle,
+  Button,
+  JudgeButtons,
+  TestProgress,
+} from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
@@ -38,51 +43,6 @@ function shuffle(words: Word[]): Word[] {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
-}
-
-/** オレンジ→レッドのグラデーション進捗バー（v1 の <progress> を踏襲）。 */
-function ProgressBar({ value, max }: { value: number; max: number }) {
-  const ratio = max > 0 ? (value / max) * 100 : 0;
-  return (
-    <Box
-      sx={{
-        width: "100%",
-        height: 8,
-        borderRadius: "999px",
-        overflow: "hidden",
-        backgroundColor: "var(--color-bg-tertiary)",
-      }}
-    >
-      <Box
-        sx={{
-          height: "100%",
-          width: `${ratio}%`,
-          borderRadius: "999px",
-          background: "linear-gradient(90deg, #ff9f43, #ff6b6b)",
-          transition: "width .3s ease",
-        }}
-      />
-    </Box>
-  );
-}
-
-function ProgressInfo({ current, total, rate }: { current: number; total: number; rate: number }) {
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "space-between",
-        fontSize: 14,
-        color: "#dddddd",
-        mb: 0.75,
-      }}
-    >
-      <span>
-        {current} / {total} 問目
-      </span>
-      <span>正答率 {rate}%</span>
-    </Box>
-  );
 }
 
 /**
@@ -199,10 +159,7 @@ export default function PublicWordbookTest({
         />
 
         <Box sx={{ mt: 2 }}>
-          <Box sx={{ mb: 5 }}>
-            <ProgressInfo current={total} total={total} rate={rate} />
-            <ProgressBar value={total} max={total} />
-          </Box>
+          <TestProgress current={total} total={total} rate={rate} filled={total} />
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {wrongWords.map((w) => (
@@ -267,10 +224,12 @@ export default function PublicWordbookTest({
           mt: 2.5,
         }}
       >
-        <Box sx={{ mb: 5 }}>
-          <ProgressInfo current={currentIndex + 1} total={total} rate={rate} />
-          <ProgressBar value={answeredCount} max={total} />
-        </Box>
+        <TestProgress
+          current={currentIndex + 1}
+          total={total}
+          rate={rate}
+          filled={answeredCount}
+        />
 
         <WordCard
           question={currentWord.question}

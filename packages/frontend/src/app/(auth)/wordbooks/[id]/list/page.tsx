@@ -14,7 +14,7 @@ import {
   Button,
   FloatingInput,
   FormError,
-  LoadingSpinner,
+  LoadingContainer,
 } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useMyWordbookQuery } from "@/graphql/queries/myWordbook";
@@ -80,9 +80,7 @@ export default function WordbookDetailPage({ params }: Props) {
 
   if (loading && !data) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 

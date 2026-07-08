@@ -13,7 +13,7 @@ import {
   Button,
   FloatingInput,
   FormError,
-  LoadingSpinner,
+  LoadingContainer,
 } from "@/components/common/ui";
 import { useAdminWordbookQuery } from "@/graphql/queries/adminWordbook";
 import { useUpdateAdminWordbookMutation } from "@/graphql/mutations/updateAdminWordbook";
@@ -72,9 +72,7 @@ export default function EditAdminWordbookPage({ params }: Props) {
 
   if (loading && !data) {
     return (
-      <Box sx={{ position: "relative", minHeight: 200 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 
@@ -231,8 +229,7 @@ export default function EditAdminWordbookPage({ params }: Props) {
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              color="#ef4444"
-              hoverColor="#dc2626"
+              variant="danger"
             >
               削除
             </Button>

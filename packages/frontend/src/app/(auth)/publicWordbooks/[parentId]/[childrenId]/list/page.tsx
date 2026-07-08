@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import { SectionTitle, LoadingSpinner, Button } from "@/components/common/ui";
+import { SectionTitle, LoadingContainer, Button } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { usePublicWordbookChaptersQuery } from "@/graphql/queries/publicWordbookChapters";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
@@ -33,9 +33,7 @@ export default function PublicWordbookListChapterPage() {
 
   if (loading) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 

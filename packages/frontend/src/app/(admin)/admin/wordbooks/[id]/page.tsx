@@ -15,7 +15,8 @@ import {
   Button,
   FloatingInput,
   FormError,
-  LoadingSpinner,
+  LoadingContainer,
+  EmptyState,
 } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useAdminWordbookQuery } from "@/graphql/queries/adminWordbook";
@@ -77,9 +78,7 @@ export default function AdminWordbookDetailPage({ params }: Props) {
 
   if (loading && !data) {
     return (
-      <Box sx={{ position: "relative", minHeight: 200 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 
@@ -450,9 +449,11 @@ export default function AdminWordbookDetailPage({ params }: Props) {
               ),
             )}
             {words.length === 0 && (
-              <Typography sx={{ color: "var(--color-font-secondary)", fontSize: 13 }}>
-                単語がありません。フォームまたは CSV 取込から登録してください。
-              </Typography>
+              <EmptyState
+                icon={<LightbulbOutlinedIcon />}
+                title="単語がありません"
+                description="フォームまたは CSV 取込から登録してください。"
+              />
             )}
           </Box>
         </Box>

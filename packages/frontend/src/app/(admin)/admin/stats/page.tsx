@@ -7,7 +7,7 @@ import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import StickyNote2OutlinedIcon from "@mui/icons-material/StickyNote2Outlined";
 import PublicOutlinedIcon from "@mui/icons-material/PublicOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
-import { LoadingSpinner } from "@/components/common/ui";
+import { LoadingContainer } from "@/components/common/ui";
 import { useAdminStatsQuery } from "@/graphql/queries/adminStats";
 import AdminPageHeader from "../_components/AdminPageHeader";
 
@@ -30,9 +30,7 @@ export default function AdminStatsPage() {
       <AdminPageHeader title="統計" backHref="/admin" backLabel="管理トップ" />
 
       {loading && !data ? (
-        <Box sx={{ position: "relative", minHeight: 160 }}>
-          <LoadingSpinner />
-        </Box>
+        <LoadingContainer />
       ) : error ? (
         <Typography sx={{ color: "var(--color-error)" }}>
           統計の取得に失敗しました。

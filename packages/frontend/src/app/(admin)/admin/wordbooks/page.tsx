@@ -3,7 +3,7 @@
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
-import { Button, LoadingSpinner } from "@/components/common/ui";
+import { Button, LoadingContainer } from "@/components/common/ui";
 import { LabelSection } from "@/components/common/card";
 import { useAdminWordbooksQuery } from "@/graphql/queries/adminWordbooks";
 import { WORDBOOK_LABELS } from "@/constants/wordbookLabels";
@@ -40,9 +40,7 @@ export default function AdminWordbooksPage() {
       />
 
       {loading && !data ? (
-        <Box sx={{ position: "relative", minHeight: 160 }}>
-          <LoadingSpinner />
-        </Box>
+        <LoadingContainer />
       ) : error ? (
         <Typography sx={{ color: "var(--color-error)" }}>
           公式単語帳の取得に失敗しました。

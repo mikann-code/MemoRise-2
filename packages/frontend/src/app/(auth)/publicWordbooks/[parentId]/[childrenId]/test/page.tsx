@@ -4,7 +4,7 @@ import NextLink from "next/link";
 import { useParams } from "next/navigation";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { LoadingSpinner } from "@/components/common/ui";
+import { LoadingContainer } from "@/components/common/ui";
 import { usePublicWordbookChaptersQuery } from "@/graphql/queries/publicWordbookChapters";
 import PublicWordbookTest from "@/components/feature/PublicWordbookTest";
 
@@ -27,9 +27,7 @@ export default function PublicWordbookTestPage() {
 
   if (loading) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 

@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
-import { SectionTitle, LoadingSpinner } from "@/components/common/ui";
+import { SectionTitle, LoadingContainer } from "@/components/common/ui";
 import { ErrorCard } from "@/components/common/card";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import WordbookTest from "@/components/feature/WordbookTest";
@@ -70,11 +70,7 @@ export default function ReviewTestPage() {
     }
 
     // 取得中 or startTransition の反映待ち（シャッフル前の順で出題しない）
-    return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
-    );
+    return <LoadingContainer />;
   }
 
   return <WordbookTest words={shuffledWords} />;

@@ -15,7 +15,7 @@ import {
   Button,
   FloatingInput,
   FormError,
-  LoadingSpinner,
+  LoadingContainer,
 } from "@/components/common/ui";
 import { useMyWordbookQuery } from "@/graphql/queries/myWordbook";
 import { useUpdateWordbookMutation } from "@/graphql/mutations/updateWordbook";
@@ -69,9 +69,7 @@ export default function EditWordbookPage({ params }: Props) {
 
   if (loading && !data) {
     return (
-      <Box sx={{ position: "relative", minHeight: 160 }}>
-        <LoadingSpinner />
-      </Box>
+      <LoadingContainer />
     );
   }
 

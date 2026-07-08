@@ -6,10 +6,11 @@ import Typography from "@mui/material/Typography";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import { SectionTitle, Button, LoadingSpinner } from "@/components/common/ui";
+import { SectionTitle, Button, LoadingContainer } from "@/components/common/ui";
 import { useMeQuery } from "@/graphql/queries/me";
 import { usePublicWordbooksQuery } from "@/graphql/queries/publicWordbooks";
 import { levelLabel } from "@/constants/wordbookLevels";
+import { MOBILE_QUERY } from "@/constants/ui";
 
 /**
  * 公式単語帳（ホーム）。未ログイン時はログイン導線カードに差し替え（v1 踏襲）。
@@ -23,7 +24,7 @@ const loginActions = {
   gap: 1.25,
   mx: "auto",
   pb: 5,
-  "@media (max-width:768px)": { width: 200, flexDirection: "column", gap: 1.75 },
+  [MOBILE_QUERY]: { width: 200, flexDirection: "column", gap: 1.75 },
 };
 
 const scrollRow = {
@@ -109,9 +110,7 @@ export default function PublicWordbook() {
       </Box>
 
       {loading ? (
-        <Box sx={{ position: "relative", minHeight: 120 }}>
-          <LoadingSpinner />
-        </Box>
+        <LoadingContainer />
       ) : error ? (
         <Typography sx={{ color: "var(--color-error)" }}>
           取得に失敗しました
