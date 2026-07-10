@@ -83,6 +83,8 @@ Issue → ブランチ `<種別>/issue-<番号>`（例 `feature/issue-8`）→ �
   （`.github/workflows/ci.yml`）。バージョンは Node 22 / Ruby 3.4.5 / PostgreSQL 16。
 - **コミット・PR の言語**：Conventional Commits の type（feat / fix / docs 等）は英語、
   説明は日本語（例 `feat(backend): 自作単語帳と単語の CRUD を実装`）。PR タイトル・本文も日本語。
+- **Issue / PR を作成したら、チャットの報告に必ず URL リンクを添える**
+  （例 `https://github.com/mikann-code/MemoRise-2/issues/41`）。
 
 ## テスト規約
 
