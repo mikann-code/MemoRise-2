@@ -1,7 +1,7 @@
 module Mutations
   # テスト終了時の学習記録の保存。「日次サマリー（study_records）の増分更新 +
-  # 詳細レコード（study_details）の追加 + streak 更新」を 1 トランザクションで行い、
-  # 「履歴は残るが進捗が更新されない」等の不整合を防ぐ（docs/backend.md §3）。
+  # 詳細レコード（study_details）の追加 + streak 更新」を
+  # 1 トランザクションで行い、「履歴は残るが進捗が更新されない」等の不整合を防ぐ（docs/backend.md §3）。
   # 学習日はクライアントから受け取らずサーバー日付（JST の今日）で記録する。
   # 同一テストの二重送信防止はフロント側（hasPostedRef）が担う（docs/frontend.md §5）。
   class CreateStudyRecord < BaseMutation
@@ -45,6 +45,7 @@ module Mutations
 
       ActiveRecord::Base.transaction do
         record.save! # 関連で組み立てた detail も同時に保存される
+        # 単語帳の last_studied はここでは触らない（単語一覧を開いた時点で openWordbook が更新する）。
         current_user.update_streak!
       end
 

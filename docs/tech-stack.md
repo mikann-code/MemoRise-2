@@ -34,16 +34,25 @@
 | ジョブ / キャッシュ | Solid Queue / Solid Cache / Solid Cable（PostgreSQL ベース、**Redis 不使用**） | 予定 |
 | ジョブ監視 | Mission Control - Jobs | 予定 |
 | ページネーション | Kaminari | 予定 |
+| デプロイ | Render（Docker イメージをビルドしてデプロイ） | 導入済み |
 | AWS 連携 | SES v2（メール） / S3 + Active Storage + image_processing（画像） / aws-sdk-rails | 予定 |
-| デプロイ | Kamal | 予定 |
 
 ## インフラ・開発環境
 
 | 分類 | 技術 |
 | --- | --- |
 | 開発環境 | Docker Compose（db / backend / frontend の 3 サービス。ジョブ worker は Solid Queue 導入時に追加予定） |
-| 本番 | AWS（予定） |
+| 本番（フロント） | Vercel（Root Directory = `packages/frontend`。ビルド時に Codegen を実行） |
+| 本番（バック） | Render（Docker / Singapore。起動時に `db:migrate`、ヘルスチェック `/up`） |
+| 本番（DB） | Neon（PostgreSQL 16。アプリは pooled 接続、マイグレーションは direct 接続） |
 | タイムゾーン | JST（`config.time_zone = "Tokyo"`） |
+
+ブラウザからの GraphQL は Vercel の `rewrites` で**同一オリジンの `/graphql`** として受け、
+サーバー側から Render へ転送する（iOS/Safari の ITP でサードパーティ Cookie が
+ブロックされるのを避けるため。構成図は [README](../README.md#アーキテクチャ本番構成)）。
+
+将来的に Kamal + AWS へ移す選択肢も残しているが、現時点ではマネージド 3 層で運用している
+（判断の経緯は [migration-rationale.md](./migration-rationale.md) §8）。
 
 ## 特徴
 

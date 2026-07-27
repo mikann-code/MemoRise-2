@@ -58,6 +58,20 @@ RSpec.describe Mutations::CreateStudyRecord do
       expect(user.reload.streak).to eq(1) # 同日 2 回でも streak は増えない（冪等）
     end
 
+    it "単語帳の最終閲覧日時（last_studied）は変えない（更新は openWordbook の責務）" do
+      wordbook.update_columns(last_studied: 3.days.ago)
+
+      expect {
+        execute_create({ kind: "WORDBOOK", totalCount: 2, correctCount: 2, wordbookId: wordbook.id.to_s })
+      }.not_to(change { wordbook.reload.last_studied })
+    end
+
+    it "復習専用テスト（REVIEW）も単語帳の最終閲覧日時を変えない" do
+      expect {
+        execute_create({ kind: "REVIEW", totalCount: 2, correctCount: 2 })
+      }.not_to(change { wordbook.reload.last_studied })
+    end
+
     it "公式の章は「親タイトル + 章タイトル」で記録する" do
       parent = create(:wordbook, :official, title: "TOEIC")
       chapter = create(:wordbook, :official, parent: parent, title: "第1章")
@@ -108,6 +122,7 @@ RSpec.describe Mutations::CreateStudyRecord do
       expect(@data["success"]).to be(false)
       expect(@data["errors"].map { |e| e["field"] }).to include("correctCount")
       expect(user.reload.streak).to eq(0)
+      expect(wordbook.reload.last_studied).to be_nil
     end
 
     it "出題数が負ならバリデーションエラーを返し、作成しない" do

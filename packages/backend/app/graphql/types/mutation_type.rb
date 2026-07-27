@@ -33,6 +33,8 @@ module Types
       description: "自作単語帳の更新（本人のみ）"
     field :delete_wordbook, mutation: Mutations::DeleteWordbook,
       description: "自作単語帳の削除（本人のみ・論理削除。単語は残す）"
+    field :open_wordbook, mutation: Mutations::OpenWordbook,
+      description: "自作単語帳を開いた記録（本人のみ・冪等。最終閲覧日時を更新し一覧の並びに反映）"
 
     # 自作単語帳の単語 CRUD（一般ユーザー専用）。
     field :create_word, mutation: Mutations::CreateWord,
