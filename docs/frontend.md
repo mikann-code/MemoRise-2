@@ -14,6 +14,9 @@ App Router の Route Group `(xxx)` で、URL に出さずに権限ごとに空�
 | `(auth)` | 必須 | `/`（ホーム）、`/publicWordbooks`、`/publicWordbooks/[parentId]`、`/publicWordbooks/[parentId]/[childrenId]/list`、`/publicWordbooks/[parentId]/[childrenId]/test`、`/wordbooks`、`/wordbooks/new`、`/wordbooks/[id]/list`、`/wordbooks/[id]/edit`、`/wordbooks/[id]/test`、`/wordbooks/review`（復習単語一覧）、`/wordbooks/review/test`（復習専用テスト）、`/study-records`（学習記録）、`/my-page`（マイページ）、`/my-page/edit`（プロフィール編集） |
 | `(admin)` | 管理者 | `/admin-login`、`/admin`（ダッシュボード）、`/admin/wordbooks`、`/admin/wordbooks/new`、`/admin/wordbooks/[id]`（章・単語の管理）、`/admin/wordbooks/[id]/edit`、`/admin/wordbooks/[id]/import`（CSV 一括登録）、`/admin/users`、`/admin/stats` |
 
+- グループの外（`app/not-found.tsx`）に 404 ページを置く。存在しない URL と `notFound()` の両方がここに来る。
+  未ログインでも表示されるため `me` を引く共通シェル（Header / Footer）は載せず、`Container` + 空状態と同じ
+  `SectionTitle` + `ErrorCard` でテーマを揃え、ホーム / 単語帳一覧への戻り導線を出す。
 - 管理空間は共通 Header を持たないため、各ページは `Container` と共通の戻り導線ヘッダ（`(admin)/admin/_components/AdminPageHeader`）で構成する。
 - 公式単語帳は「教材（トップレベル）→ 章（children）→ 単語」を `/admin/wordbooks/[id]` の遷移で辿る。章も単語帳なので同じ詳細画面で管理するが、単語を登録できるのは章のみ（教材は章の入れ物で単語を直接持たない。教材では章の一覧・追加フォームを、章では単語フォーム・CSV 取込を出し分ける。バックエンド側も教材への単語登録を拒否する）。教材を作成すると既定の章「第1章」がバックエンドで自動作成されるため、詳細画面には最初から章が 1 つ並ぶ。
 
@@ -75,12 +78,18 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 
 - 各ホームセクションは**自己完結ウィジェット**（内部でローディング・エラー・フォールバックを処理）。構成変更はセクションの並べ替えだけで済む。
 - `DailyWord` は取得失敗時に内蔵 `fallbackWords` からランダム 1 件を表示し、初回ロードの空白を防ぐ。
+- 自作単語帳の単語一覧（`/wordbooks/[id]/list`）は、表示時に `openWordbook` を発火して最終閲覧日時を記録する。
+  単語帳一覧（`/wordbooks`）の並び「最近開いた順」と時刻表示の元で、テストを完了しなくても反映される。
+  取得できた単語帳の id で送り、記録済みの id を `useRef` に保持して Strict Mode の二重実行・重複送信を防ぐ。
+  記録はベストエフォート（失敗しても一覧表示は継続）。保存後は `myWordbooks` のキャッシュを捨てて再取得させる。
 
 ## 5. テスト機能のフロー（v1 のロジックを維持）
 
 1. `useWords`（v2: GraphQL クエリ）の結果をシャッフルしてから `Test` に渡す。シャッフルは `startTransition` で低優先度化し UI をブロックしない。
 2. 「答えを見る」→ 正誤判定。誤答時の復習タグは自動登録しない。結果画面の「間違えた単語を復習リストに登録」（`useSnackbar().confirm` で確認）で未登録の誤答単語をまとめて `addTaggedWord` する（登録済みになるとボタンは消える）。単語一覧のタグアイコンも付け外し両方向で confirm を挟む（mutation → refetch の反映待ちで未登録に見える誤解を防ぐ）。
+   - 復習専用テスト（`wordbookId` なし）の結果画面では、対になる「覚えた単語を外す」を出す。**正解した単語のうちタグが残っているものだけ**を `removeTaggedWord` でまとめて外し（`ReviewTagProvider.removeTags`）、間違えた単語は復習リストに残す。登録側と同じく confirm を挟み、外し終わるとボタンは消える。
 3. テスト終了（`currentIndex >= total`）を `useEffect` で検知し、`createStudyRecord`（履歴）と `completeWordbookProgress`（進捗）を発火。
+   単語帳の最終閲覧日時（`lastStudied`）はここでは更新しない（単語一覧を開いた時点で `openWordbook` が記録する → §4）。
 4. **冪等性**：`hasPostedRef = useRef(false)` で Strict Mode の二重実行・二重送信を防止。
 
 実装状況：`/wordbooks/[id]/test`（WordbookTest）は #10 で 2〜4 を接続済み

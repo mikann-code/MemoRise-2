@@ -57,11 +57,24 @@ services:
     command: sh -c "npm install && npm run dev"
     volumes:
       - ./packages/frontend:/app
+      # codegen（postinstall / predev）が参照する SDL。codegen.ts の schema は
+      # frontend からの相対パス ../backend/schema.graphql なので、コンテナ内では
+      # /backend/schema.graphql に見えている必要がある（読み取り専用で渡す）。
+      # schema を再ダンプしたら docker compose restart frontend で読み直す。
+      - ./packages/backend/schema.graphql:/backend/schema.graphql:ro
       - frontend-node-modules:/app/node_modules
+      # .next はホストと共有しない。ホストの build 成果物とコンテナのコンパイル結果が
+      # 混ざるとモジュール解決が壊れ、Windows の bind mount では I/O も遅い。
+      # node_modules と同じく専用ボリュームに分離する。
+      - frontend-next-cache:/app/.next
     ports:
       - "3200:3200"
     environment:
       NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://localhost:3100/graphql}
+      # next/font/google のフォント取得は fonts.gstatic.com の IPv6 が先に返ると
+      # コンテナからは繋がらず、ページが 500 になる（.next のキャッシュが無い初回に顕在化）。
+      # Node の名前解決を IPv4 優先にして回避する。
+      NODE_OPTIONS: --dns-result-order=ipv4first
     depends_on:
       - backend
 
@@ -69,3 +82,4 @@ volumes:
   postgres-data:
   bundle-cache:
   frontend-node-modules:
+  frontend-next-cache:

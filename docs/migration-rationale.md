@@ -51,16 +51,16 @@
 - **v2 の選択（採用済み）**：DB セッションにすることで、サーバー側でセッションを**即時失効・一元管理**できる。学習アプリの規模ではステートレスの水平スケール優位性より、運用の制御性を優先した。
 - **トレードオフ**：DB セッションはサーバー状態を持つため、スケール時に共有ストアが要る。この点を理解したうえでの選択だと説明できると良い。
 
-## 8. ⚠️ インフラ・DB：開発・本番ともに PostgreSQL に統一（デプロイは Render + Vercel を想定）
+## 8. インフラ・DB：開発・本番ともに PostgreSQL に統一（Vercel + Render + Neon）
 
-> ※ 当初は AWS + Kamal + MySQL 8 統一を想定していたが、現段階では **PostgreSQL 統一 + Render / Vercel** に方針変更。最終構成は調整中。
+> ※ 当初は AWS + Kamal + MySQL 8 統一を想定していたが、**PostgreSQL 統一 + Vercel / Render / Neon** に方針変更し、この構成で**稼働中**（https://memo-rise-2.vercel.app ）。
 
 - **v1 の状況**：フロントは Vercel、バック・DB は Render の無料枠。開発は MySQL、本番は PostgreSQL と**環境で DB が分かれていた**。
 - **課題**：
   - 開発と本番で DB が異なり、差異起因の不具合リスクがある。
   - Render 無料枠のスリープ等の制約。
-- **v2 の選択**：開発・本番ともに **PostgreSQL 16 に統一**し環境差を解消。デプロイは当面 **Render（バックエンド）+ Vercel（フロント）** で軽量に立ち上げ、Render 純正のマネージド PostgreSQL を使う。Solid 系（Queue/Cache/Cable）も PostgreSQL に寄せ Redis 不使用を維持。将来的に Kamal + AWS への移行も選択肢として残す。
-- **トレードオフ**：マネージド前提で自前運用の学びは減るが、初期は本番化までの速度とシンプルさを優先。フロント／バックが別ドメインになるため、認証（Cookie / トークン）と CORS の設計に注意が要る。
+- **v2 の選択**：開発・本番ともに **PostgreSQL 16 に統一**し環境差を解消。デプロイは **Vercel（フロント）+ Render（バックエンド）+ Neon（DB）** のマネージド 3 層。DB を Render 純正ではなく Neon にしたのは、Render の無料 PostgreSQL に有効期限があり、DB だけ別サービスに分けたほうが寿命の制約を受けないため。Solid 系（Queue/Cache/Cable）も PostgreSQL に寄せ Redis 不使用を維持。将来的に Kamal + AWS への移行も選択肢として残す。
+- **トレードオフ**：マネージド前提で自前運用の学びは減るが、初期は本番化までの速度とシンプルさを優先。フロント／バックが別ドメインになるため、実際に**認証 Cookie の設計でつまずいた**（本番は `SameSite=None; Secure`、さらに iOS/Safari の ITP 回避のため `/graphql` を Vercel の rewrites で同一オリジンにプロキシしファーストパーティ Cookie 化）。また Render 無料枠はスリープするため、初回アクセスのコールドスタートが残課題。
 
 ---
 
