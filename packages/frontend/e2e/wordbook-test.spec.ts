@@ -84,6 +84,23 @@ async function mockGraphql(page: Page) {
       return;
     }
 
+    // 単語一覧を開いた記録。結果画面から一覧へ戻る導線で呼ばれる（検証は wordbooks.spec.ts）。
+    if (op === "OpenWordbook") {
+      await json({
+        openWordbook: {
+          success: true,
+          errors: [],
+          wordbook: {
+            id: "10",
+            lastStudied: "2026-07-25T12:00:00Z",
+            __typename: "Wordbook",
+          },
+          __typename: "OpenWordbookPayload",
+        },
+      });
+      return;
+    }
+
     await json({ me: null });
   });
 }

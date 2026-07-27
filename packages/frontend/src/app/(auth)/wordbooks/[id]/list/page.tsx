@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, use, useEffect, useState } from "react";
+import { type FormEvent, use, useEffect, useRef, useState } from "react";
 import NextLink from "next/link";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -21,6 +21,7 @@ import { useMyWordbookQuery } from "@/graphql/queries/myWordbook";
 import { useCreateWordMutation } from "@/graphql/mutations/createWord";
 import { useUpdateWordMutation } from "@/graphql/mutations/updateWord";
 import { useDeleteWordMutation } from "@/graphql/mutations/deleteWord";
+import { useOpenWordbookMutation } from "@/graphql/mutations/openWordbook";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
 import {
@@ -56,6 +57,7 @@ export default function WordbookDetailPage({ params }: Props) {
   const [createWord, { loading: adding }] = useCreateWordMutation();
   const [updateWord, { loading: updating }] = useUpdateWordMutation();
   const [deleteWord] = useDeleteWordMutation();
+  const [openWordbook] = useOpenWordbookMutation();
 
   const { isTagged, toggleTag } = useReviewTags();
   const { confirm, notify } = useSnackbar();
@@ -77,6 +79,18 @@ export default function WordbookDetailPage({ params }: Props) {
   useEffect(() => {
     if (wordbookId) localStorage.setItem("lastWordbookUuid", wordbookId);
   }, [wordbookId]);
+
+  // この一覧を開いた時点で最終閲覧日時を記録する（単語帳一覧の「最近開いた順」と時刻表示の元）。
+  // 取得できた単語帳の id で送るので、他人・削除済みへの無駄な送信をしない。
+  // 記録済みの id を保持して Strict Mode の二重実行・再レンダリングでの重複送信を防ぐ。
+  // 記録はベストエフォートで、失敗しても一覧の表示はそのまま続ける。
+  const openedIdRef = useRef<string | null>(null);
+  const loadedWordbookId = wordbook?.id ?? null;
+  useEffect(() => {
+    if (!loadedWordbookId || openedIdRef.current === loadedWordbookId) return;
+    openedIdRef.current = loadedWordbookId;
+    openWordbook({ variables: { id: loadedWordbookId } }).catch(() => {});
+  }, [loadedWordbookId, openWordbook]);
 
   if (loading && !data) {
     return (
