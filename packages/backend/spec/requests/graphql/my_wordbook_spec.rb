@@ -19,7 +19,7 @@ RSpec.describe Resolvers::MyWordbook do
   end
 
   describe "正常系" do
-    it "自分の自作単語帳を単語（id 昇順）付きで返す" do
+    it "自分の自作単語帳を単語（新しい順）付きで返す" do
       wordbook = create(:wordbook, user: user, title: "英単語")
       create(:word, wordbook: wordbook, question: "apple", answer: "りんご")
       create(:word, wordbook: wordbook, question: "book", answer: "本")
@@ -28,7 +28,8 @@ RSpec.describe Resolvers::MyWordbook do
 
       expect(data["title"]).to eq("英単語")
       expect(data["wordsCount"]).to eq(2)
-      expect(data["words"].map { |w| w["question"] }).to eq([ "apple", "book" ])
+      # 後から追加した単語が先頭に来る（追加直後にスクロールせず確認できる）
+      expect(data["words"].map { |w| w["question"] }).to eq([ "book", "apple" ])
     end
   end
 

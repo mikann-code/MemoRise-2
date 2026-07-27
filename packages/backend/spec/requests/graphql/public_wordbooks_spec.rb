@@ -26,6 +26,16 @@ RSpec.describe Resolvers::PublicWordbooks do
       expect(titles).to eq([ "英検", "TOEIC" ])
     end
 
+    it "order_index が未設定の教材は新しく作った順に返す" do
+      create(:wordbook, :official, title: "先に作った教材")
+      create(:wordbook, :official, title: "後から作った教材")
+
+      result = execute_graphql(query, context: { current_user: user })
+      titles = result.dig("data", "publicWordbooks").map { |w| w["title"] }
+
+      expect(titles).to eq([ "後から作った教材", "先に作った教材" ])
+    end
+
     it "ラベル / レベル / kind を返す" do
       create(:wordbook, :official, title: "TOEIC", label: "toeic", level: "standard")
 

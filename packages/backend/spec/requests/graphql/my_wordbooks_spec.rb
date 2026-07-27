@@ -13,14 +13,27 @@ RSpec.describe Resolvers::MyWordbooks do
   let!(:user) { create(:user) }
 
   describe "正常系" do
-    it "自分の自作単語帳のみを作成順（id 昇順）で返す" do
-      create(:wordbook, user: user, title: "英単語")
-      create(:wordbook, user: user, title: "IT 用語")
+    it "自分の自作単語帳のみを最近学習した順で返す" do
+      older = create(:wordbook, user: user, title: "英単語")
+      newer = create(:wordbook, user: user, title: "IT 用語")
+      older.update_columns(last_studied: 2.days.ago)
+      newer.update_columns(last_studied: 1.hour.ago)
 
       result = execute_graphql(query, context: { current_user: user })
       titles = result.dig("data", "myWordbooks").map { |w| w["title"] }
 
-      expect(titles).to eq([ "はじめての単語帳", "英単語", "IT 用語" ])
+      # 未学習（はじめての単語帳）は学習済みの後ろへ回る
+      expect(titles).to eq([ "IT 用語", "英単語", "はじめての単語帳" ])
+    end
+
+    it "未学習の単語帳同士は新しく作った順に並べる" do
+      create(:wordbook, user: user, title: "先に作った帳")
+      create(:wordbook, user: user, title: "後から作った帳")
+
+      result = execute_graphql(query, context: { current_user: user })
+      titles = result.dig("data", "myWordbooks").map { |w| w["title"] }
+
+      expect(titles).to eq([ "後から作った帳", "先に作った帳", "はじめての単語帳" ])
     end
 
     it "自由入力ラベル・説明・単語数を返す" do

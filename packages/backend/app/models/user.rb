@@ -30,25 +30,29 @@ class User < ApplicationRecord
   # 連続学習日数を更新する。
   #   - 今日すでに更新済みなら何もしない（二度押し冪等）
   #   - 昨日学習済みなら +1、そうでなければ 1 にリセット
+  # 判定は「読んでから書く」ので、同じ日にテストを連続で終えて 2 リクエストが並走すると
+  # どちらも古い last_study_date を読んで二重加算しうる。with_lock（SELECT ... FOR UPDATE）で
+  # 行を直列化し、後続は最新値を読み直して冪等ガードに入るようにする。
   # validation / callback を介さない軽量更新（update_columns）。updated_at も明示更新する。
   def update_streak!
-    today = Time.zone.today
-    return if last_study_date == today
+    with_lock do
+      today = Time.zone.today
+      next if last_study_date == today
 
-    new_streak = (last_study_date == today - 1) ? streak + 1 : 1
-    update_columns(streak: new_streak, last_study_date: today, updated_at: Time.current)
+      new_streak = (last_study_date == today - 1) ? streak + 1 : 1
+      update_columns(streak: new_streak, last_study_date: today, updated_at: Time.current)
+    end
   end
 
-  # 連続が途切れていたら streak を 0 に戻す（ログイン時などに呼ぶ）。
-  #   - 既に 0（未学習含む）なら何もしない（無駄な書き込み回避・冪等）
-  #   - 最終学習日が今日 or 昨日なら継続中とみなして維持（昨日は当日学習で繋がる猶予）
-  #   - 一昨日以前なら途切れとみなして 0
-  # last_study_date 自体は実際の最終学習日として保持する（書き換えない）。
-  def refresh_streak!
-    return if streak.zero?
-    return if last_study_date && last_study_date >= Time.zone.today - 1
+  # 表示用の連続学習日数。
+  # streak カラムは「最後に学習した時点の連続日数」なので、そのまま見せると
+  # 何日も学習していないユーザーに古い日数が出続ける。最終学習日が一昨日以前なら
+  # 連続は途切れているので 0 を返す（今日 or 昨日は継続中。昨日は当日学習で繋がる猶予）。
+  # カラムを書き換えないので、いつ参照しても正しい値になる（補正の呼び忘れが起きない）。
+  def current_streak
+    return 0 if last_study_date.nil? || last_study_date < Time.zone.today - 1
 
-    update_columns(streak: 0, updated_at: Time.current)
+    streak
   end
 
   private

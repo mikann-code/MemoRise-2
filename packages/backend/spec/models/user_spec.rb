@@ -100,35 +100,37 @@ RSpec.describe User, type: :model do
     end
   end
 
-  describe "#refresh_streak!" do
+  describe "#current_streak" do
     let(:user) { create(:user) }
     let(:today) { Time.zone.today }
 
-    it "最終学習が今日なら維持する" do
+    it "未学習（last_study_date が nil）なら 0" do
+      expect(user.current_streak).to eq(0)
+    end
+
+    it "最終学習が今日ならカラムの値をそのまま返す" do
       user.update_columns(streak: 5, last_study_date: today)
-      expect { user.refresh_streak! }.not_to(change { user.reload.streak })
+      expect(user.current_streak).to eq(5)
     end
 
     it "最終学習が昨日なら維持する（当日学習で繋がる猶予）" do
       user.update_columns(streak: 5, last_study_date: today - 1)
-      expect { user.refresh_streak! }.not_to(change { user.reload.streak })
+      expect(user.current_streak).to eq(5)
     end
 
-    it "最終学習が一昨日以前なら 0 にリセットする" do
+    it "最終学習が一昨日以前なら 0（連続は途切れている）" do
       user.update_columns(streak: 5, last_study_date: today - 2)
-      user.refresh_streak!
-      expect(user.reload.streak).to eq(0)
+      expect(user.current_streak).to eq(0)
     end
 
-    it "リセットしても last_study_date は書き換えない" do
+    it "参照だけではカラムを書き換えない" do
       user.update_columns(streak: 5, last_study_date: today - 2)
-      user.refresh_streak!
-      expect(user.reload.last_study_date).to eq(today - 2)
+      expect { user.current_streak }.not_to(change { user.reload.streak })
     end
 
-    it "既に 0 なら書き込まない（冪等）" do
-      user.update_columns(streak: 0, last_study_date: today - 10)
-      expect { user.refresh_streak! }.not_to(change { user.reload.updated_at })
+    it "今日 1 日だけ学習したユーザーは 1 になる" do
+      user.update_streak!
+      expect(user.reload.current_streak).to eq(1)
     end
   end
 end

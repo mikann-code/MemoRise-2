@@ -6,7 +6,9 @@ module Types
     field :name, String, null: false
     field :email, String, null: false
     field :role, String, null: false
-    field :streak, Integer, null: false, description: "連続学習日数"
+    # 連続が途切れていれば 0 を返す（カラムの生値ではなく User#current_streak で算出する）。
+    field :streak, Integer, null: false, method: :current_streak,
+      description: "連続学習日数（最終学習日が一昨日以前なら 0）"
     field :last_study_date, GraphQL::Types::ISO8601Date, null: true
     field :words_count, Integer, null: false, description: "登録単語数（counter_cache）"
     field :created_at, GraphQL::Types::ISO8601DateTime, null: false
