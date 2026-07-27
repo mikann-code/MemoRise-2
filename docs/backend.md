@@ -26,6 +26,11 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 
 - `after_create :create_default_wordbook` で「はじめての単語帳」を自動生成。
 - `update_streak!`：今日未更新かつ昨日学習済みなら +1、そうでなければ 1。`update_columns` で軽量更新、二度押し冪等。
+  判定が「読んでから書く」ため、`with_lock`（`SELECT ... FOR UPDATE`）で行を直列化し、同日の並行リクエストによる二重加算を防ぐ。
+- `current_streak`：**表示用**の連続学習日数。`streak` カラムは「最後に学習した時点の連続日数」なので、
+  最終学習日が一昨日以前なら連続は途切れたとみなして 0 を返す（今日 / 昨日は継続中）。
+  カラムを書き換えず参照時に算出するので、補正処理の呼び忘れで古い日数が出続けることがない。
+  `UserType.streak` はこの値を返す（`method: :current_streak`）。
 
 ### admin_users（設計案・未実装）
 | カラム | 型 |
@@ -49,7 +54,7 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 | label | string | 公式のカテゴリ分類。`Wordbook::LABELS`（junior_high / eiken / toeic / official 等）に inclusion（official のみ・任意） |
 | level | string | 公式の難易度分類。`Wordbook::LEVELS`（basic / standard / advanced）に inclusion（official のみ・任意）。同一 label 内の段階分け用 |
 | order_index | integer | 章の並び順（表示番号「第○章」はフロントが並び位置から導出） |
-| last_studied | datetime | 「最近学習した順」ソート用 |
+| last_studied | datetime | 「最近開いた順」ソート用の最終閲覧日時。`openWordbook` が `touch_studied!` で更新する |
 | deleted_at | datetime | 論理削除 |
 | words_count | integer | counter_cache |
 
@@ -99,9 +104,9 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 
 ## 3. ドメインロジック（v2 でも維持）
 
-- **テスト完了処理の原子性**：「日次サマリーの増分更新 + 詳細レコード追加」をトランザクション化。「履歴は残るが進捗が更新されない」等の不整合を防ぐ。
+- **テスト完了処理の原子性**：「日次サマリーの増分更新 + 詳細レコード追加 + streak 更新」をトランザクション化。「履歴は残るが進捗が更新されない」等の不整合を防ぐ。
 - **章の解放**：`complete` 操作で現在パートを完了し、`order_index` 昇順で次パートを `find_or_create_by!`。完了と解放を同一トランザクションで処理。
-- **streak 更新**：モデル内 `update_streak!` にカプセル化。
+- **streak 更新**：モデル内 `update_streak!`（加算・行ロックで直列化）と `current_streak`（表示時に途切れを判定）にカプセル化（§2 users）。
 - **今日の一問**：公式単語からランダム 1 件を返す軽実装。
 - **CSV 一括登録（管理者）**：1 行 = 「問題,答え」（最初のカンマで 2 分割）。1 行ずつ単語を作成し、
   正常な行はそのまま登録（部分成功）、失敗した行は行番号付きエラーとして errors に載せる。
@@ -117,23 +122,31 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 
 - 実装済み Query：`health` / `me` / `adminMe` / `myWordbooks` / `myWordbook(id)` / `publicWordbooks` / `publicWordbook(id)` / `todayWord` / `taggedWords` / `wordbookProgresses(wordbookId)` / `studyRecords(year, month)` / `studyRecordsWeek(startDate)` / `studyRecordsRecent` / `adminWordbooks` / `adminWordbook(id)` / `adminUsers(page, perPage, keyword, sortBy, sortOrder)` / `adminStats`
   - `adminWordbooks` は公式単語帳の教材（トップレベル・論理削除を除く）を order_index 昇順で返す。`adminWordbook(id)` は教材・章どちらの id でも引け、`children`（章）/ `words`（単語）まで辿れる管理用取得。`adminUsers` は全ユーザーをキーワード検索（`keyword`：name / email の部分一致・大小無視）・並び替え（`sortBy`：`CREATED_AT` / `WORDS_COUNT`、`sortOrder`：`ASC` / `DESC`、既定は登録日の降順）・ページング（`page` 1 始まり、`perPage` は 1〜100 にクランプ）して `AdminUsersResult { nodes, totalCount }` を返す（`totalCount` は絞り込み後・ページ分割前の総数）。`adminStats` はユーザー数・単語数・公式/自作単語帳数の集計。いずれも `require_admin!` でガード（失敗は FORBIDDEN を raise）。
+  - 一覧の並び順：`myWordbooks` は「最近開いた順」（`last_studied` 降順・未閲覧は後ろへ回し、その中は新しく作った順）。
+    `publicWordbooks` は `order_index` 昇順 → 新しく作った順（教材の `order_index` は既定で未設定なので実質は新しい順）。
+    `WordbookType.words` は新しい順で返し、追加した単語が一覧の先頭に来るようにする。
+    章（`WordbookType.children`）は解放順と直結するので `order_index` 昇順のまま。
   - `studyRecords` 系は current_user スコープで `study_details` 込みを返す（月別 = カレンダー用・日付昇順 / 週別 = startDate から 7 日分・週初めの月曜補正はフロント側 / 直近 = 新しい日付順・最大 30 件）。不正な年月は `BAD_REQUEST` を raise。
   - `todayWord` は公式単語帳の単語（論理削除済み単語帳を除く）からランダム 1 件を返す軽実装。公式単語が 0 件なら null（フロントは `fallbackWords` に切り替え）。要ログイン。
   - 登録単語数は `me { wordsCount }`（`UserType` の `words_count` counter_cache フィールド）で取得する。`me` で取れるため専用の `totalWords` クエリは設けない。マイページの表示に使う。
   - `wordbookProgresses(wordbookId)` は公式単語帳（親）の章ごとの解放状態（`WordbookProgress { id, wordbookId, completed }`）を返す。解放は進捗レコードの存在で表現し、取得時に先頭章の進捗を遅延作成（lazy initialization）する。公式でない/存在しない親は空配列。要ログイン。
-- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`createAdminWord` / `updateAdminWord` / `deleteAdminWord`、`importCsv`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `createStudyRecord` / `updateProfile` / `completeWordbookProgress`
+- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`createAdminWord` / `updateAdminWord` / `deleteAdminWord`、`importCsv`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `openWordbook`（冪等）/ `createStudyRecord` / `updateProfile` / `completeWordbookProgress`
   - `createAdminWordbook` は `parentId` なしで教材（トップレベル）、ありで章（子）を作成する。単語は章にのみ登録できる設計のため、教材の作成時は既定の章「第1章」（order_index `1`・label / level は親を引き継ぐ）を同一トランザクションで 1 つ自動作成し、章ゼロの教材を作らない。章番号カラムは持たず、表示番号「第○章」はフロントが order_index 昇順の並び位置から導出する。章（子）は `orderIndex` 省略時に「同じ親の最大 order_index + 1」を末尾へ自動採番する（`order_index` は progress の章解放順と直結するため、管理 UI では数値を編集させず作成順に並べる）。
   - `createAdminWord` / `updateAdminWord` / `deleteAdminWord` は公式単語帳の単語 CRUD。対象は「公式かつ論理削除前の単語帳に属する単語」に限定し、自作単語へ書く事故を構造的に防ぐ。単語を追加できるのは章（子単語帳）のみで、教材（親・トップレベル）は章の入れ物として単語を直接持たない（`createAdminWord` / `importCsv` は教材への登録を `wordbookId` エラーで拒否する）。`importCsv` は §3 の CSV 一括登録（行番号付きエラー・部分成功）。いずれも admin コンテキスト必須。
   - `createStudyRecord` は「日次サマリーの増分更新 + 詳細追加 + streak 更新」を 1 トランザクションで行う（§3）。
+    単語帳の `last_studied` はここでは触らない（更新は `openWordbook` の責務）。
     学習日はサーバー日付（JST）。同一テストの二重送信防止はフロントの `hasPostedRef` が担う（[frontend.md](./frontend.md) §5）。
     記録の種類は GraphQL enum `StudyRecordKind`（`WORDBOOK` = 単語帳のテスト・wordbookId 必須 /
     `REVIEW` = 復習専用テスト・wordbookId 不可）で明示し、組み合わせ不正は errors で返す（消去法で復習扱いにしない）。
   - `addTaggedWord` / `removeTaggedWord` の対象は「本人の単語 or 公式単語帳の単語」（論理削除済み単語帳を除く）。
   - `updateProfile` は本人のプロフィール編集（名前は必須・パスワードは変更時のみ）。パスワード変更時は確認用との一致を検証する。
   - `completeWordbookProgress(wordbookId)` は公式単語帳の章を完了（`completed: true`）し、`order_index` 昇順で次章を `find_or_create_by!` で解放する。完了と解放を同一トランザクションで処理（§3）。
-- 未実装：`studyWordbook`（`last_studied` 更新）
-  - `studyWordbook` は `last_studied` を更新する任意 Mutation。現状 `last_studied` を参照する導線・受け入れ条件が無いため見送り（必要になれば `createStudyRecord` への統合含め別途）。
-  （未実装のテーブルは §2 のとおり作成済み。フロントは未実装分をクライアント一時状態でフォールバック中 → [frontend.md](./frontend.md) §3）
+  - `openWordbook(id)` は自作単語帳の単語一覧を開いたことを記録する（`last_studied` を現在時刻へ更新）。
+    本人の personal / 論理削除前のみが対象で、何度呼んでも最新時刻へ上書きするだけの冪等な操作。
+- `last_studied` は「最終学習日時」ではなく**最終閲覧日時**として扱う。更新契機はテスト完了ではなく
+  単語一覧を開いた時点で、専用 Mutation `openWordbook` が担う。テストを最後まで終えなくても
+  一覧の並びと時刻表示に反映され、「開いたのに一覧が変わらない」を防ぐ。
+  カラム名は互換のため `last_studied` のままにしている（意味だけを読み替える）。
 
 **Mutation の返却規約**：例外を投げず `{ success, errors: [{ field, message }] }` 形式の Payload を返す。
 認可失敗（本人以外・非管理者）も errors に載せる。**クエリの失敗は raise**（従来どおり GraphQL エラー）。
