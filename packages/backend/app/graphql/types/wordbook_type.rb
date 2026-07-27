@@ -12,17 +12,19 @@ module Types
     field :kind, String, null: false, description: "official / personal / shared"
     field :words_count, Integer, null: false, description: "登録単語数（counter_cache）"
     field :last_studied, GraphQL::Types::ISO8601DateTime, null: true,
-      description: "最終学習日時（未学習なら null）"
+      description: "最終閲覧日時（単語一覧を開いた時刻。一度も開いていなければ null）"
     field :children, [ Types::WordbookType ], null: false,
       description: "子（章）。論理削除を除外し order_index 昇順"
-    field :words, [ Types::WordType ], null: false, description: "この単語帳の単語"
+    field :words, [ Types::WordType ], null: false,
+      description: "この単語帳の単語（新しい順）"
 
     def children
       object.children.kept.order(:order_index, :id)
     end
 
+    # 追加した単語が一覧の先頭に来るよう新しい順で返す（章の children は解放順なので昇順のまま）。
     def words
-      object.words.order(:id)
+      object.words.order(id: :desc)
     end
   end
 end

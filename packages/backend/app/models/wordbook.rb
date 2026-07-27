@@ -66,4 +66,11 @@ class Wordbook < ApplicationRecord
 
     update_columns(deleted_at: nil, updated_at: Time.current)
   end
+
+  # 単語一覧を開いたときに最終閲覧日時を記録する（単語帳一覧の「最近開いた順」と時刻表示の元）。
+  # カラム名は last_studied のままだが、更新契機はテスト完了ではなく閲覧（openWordbook）。
+  # discard! と同じく validation / callback を介さない軽量更新（update_columns）。
+  def touch_studied!
+    update_columns(last_studied: Time.current, updated_at: Time.current)
+  end
 end
