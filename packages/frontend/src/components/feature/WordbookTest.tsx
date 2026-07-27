@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRenameOutlineOutlined";
 import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
+import BookmarkRemoveOutlinedIcon from "@mui/icons-material/BookmarkRemoveOutlined";
 import {
   SectionTitle,
   Button,
@@ -43,15 +44,18 @@ type Props = {
  * 完了で結果画面（正答率・間違えた単語一覧）を表示し、学習記録を 1 回だけ保存する
  * （hasPostedRef で Strict Mode の二重実行・二重送信を防止）。
  * wordbookId なしは復習専用テスト（記録は単語帳なし・戻り先は復習単語一覧）。
+ * 結果画面の一括操作は wordbookId で役割を分ける：単語帳のテスト（自作・公式）は「登録」だけ、
+ * 復習専用テストは対になる「覚えた単語を外す」だけを出し、両方が並ばないようにする。
  */
 export default function WordbookTest({ wordbookId, words }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [opened, setOpened] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongWords, setWrongWords] = useState<Word[]>([]);
-  // 一括登録（mutation → refetch）中の連打で二重送信しないようにする。
+  const [correctWords, setCorrectWords] = useState<Word[]>([]);
+  // 一括操作（mutation → refetch）中の連打で二重送信しないようにする。
   const [registering, setRegistering] = useState(false);
-  const { isTagged, addTags, toggleTag } = useReviewTags();
+  const { isTagged, addTags, removeTags, toggleTag } = useReviewTags();
   const { confirm, notify } = useSnackbar();
   const [createStudyRecord] = useCreateStudyRecordMutation();
   const hasPostedRef = useRef(false);
@@ -92,6 +96,7 @@ export default function WordbookTest({ wordbookId, words }: Props) {
 
   const handleCorrect = () => {
     setCorrectCount((prev) => prev + 1);
+    setCorrectWords((prev) => [...prev, currentWord]);
     goNext();
   };
 
@@ -100,9 +105,20 @@ export default function WordbookTest({ wordbookId, words }: Props) {
     goNext();
   };
 
-  // 結果画面の一括登録対象（既にタグ済みの単語は除く。全て登録済みならボタンごと消える）。
-  const untaggedWrongWords = wrongWords.filter((w) => !isTagged(w.id));
+  // 結果画面の一括操作の対象。「登録 = 単語帳のテスト（自作・公式）」「解除 = 復習専用テスト」と
+  // 役割を分け、どちらも wordbookId の有無で開閉する（結果画面に両方が並ばないようにする）。
+  // 登録：誤答のうち未タグの単語（全て登録済みならボタンごと消える）。
+  const untaggedWrongWords = wordbookId
+    ? wrongWords.filter((w) => !isTagged(w.id))
+    : [];
 
+  // 解除：正解した単語のうち、まだタグが付いているもの。間違えた単語は復習リストに残す。
+  // 解除し終えるとボタンごと消える（登録側と対称）。
+  const taggedCorrectWords = wordbookId
+    ? []
+    : correctWords.filter((w) => isTagged(w.id));
+
+  // 公式単語帳、自作単語帳専用
   const handleRegisterWrongWords = async () => {
     if (registering) return;
     const targets = untaggedWrongWords;
@@ -119,6 +135,30 @@ export default function WordbookTest({ wordbookId, words }: Props) {
       notify("復習リストに登録しました");
     } catch {
       notify("復習リストへの登録に失敗しました");
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  // 復習単語帳専用
+  // 覚えた単語（このテストで正解した単語）をまとめて復習リストから外す。
+  // 1 件ずつタグアイコンを押す後片付けを、テスト直後にまとめて済ませるための導線。
+  const handleRemoveCorrectWords = async () => {
+    if (registering) return;
+    const targets = taggedCorrectWords;
+    if (
+      !(await confirm(
+        `正解した単語 ${targets.length} 件を復習リストから外しますか？`,
+      ))
+    ) {
+      return;
+    }
+    setRegistering(true);
+    try {
+      await removeTags(targets.map((w) => w.id));
+      notify("復習リストから外しました");
+    } catch {
+      notify("復習リストの更新に失敗しました");
     } finally {
       setRegistering(false);
     }
@@ -161,6 +201,16 @@ export default function WordbookTest({ wordbookId, words }: Props) {
                   <Box component="span" sx={buttonContentSx}>
                     <BookmarkAddOutlinedIcon sx={{ fontSize: 18 }} />
                     復習リストに登録
+                  </Box>
+                </Button>
+              </Box>
+            )}
+            {taggedCorrectWords.length > 0 && (
+              <Box sx={{ flex: 1 }}>
+                <Button onClick={handleRemoveCorrectWords} disabled={registering}>
+                  <Box component="span" sx={buttonContentSx}>
+                    <BookmarkRemoveOutlinedIcon sx={{ fontSize: 18 }} />
+                    覚えた単語を外す
                   </Box>
                 </Button>
               </Box>
