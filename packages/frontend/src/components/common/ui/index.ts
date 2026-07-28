@@ -7,3 +7,4 @@ export { default as LoadingSpinner } from "./LoadingSpinner";
 export { default as LoadingContainer } from "./LoadingContainer";
 export { default as EmptyState } from "./EmptyState";
 export { default as TestProgress } from "./TestProgress";
+export { default as TestResultSummary } from "./TestResultSummary";

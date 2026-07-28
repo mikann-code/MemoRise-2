@@ -143,10 +143,12 @@ test("単語テストを最後まで実行して結果画面を確認できる�
   await page.getByRole("button", { name: "答えを見る" }).click();
   await page.getByRole("button", { name: "不正解", exact: true }).click();
 
-  // 結果画面：最終正答率と、間違えた単語が答え付きの WordCard で並ぶ
+  // 結果画面：スコアのサマリー（正解数 / 出題数・正答率）と、間違えた単語が答え付きの WordCard で並ぶ
   await expect(page.getByRole("heading", { name: "テスト結果" })).toBeVisible();
-  await expect(page.getByText("2 / 2 問目")).toBeVisible();
+  await expect(page.getByText("/ 2")).toBeVisible();
+  await expect(page.getByText("問正解")).toBeVisible();
   await expect(page.getByText("正答率 50%")).toBeVisible();
+  await expect(page.getByText("間違えた単語（1 件）")).toBeVisible();
   await expect(page.getByText(second.question, { exact: true })).toBeVisible();
   await expect(page.getByText(second.answer, { exact: true })).toBeVisible();
 
