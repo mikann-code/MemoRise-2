@@ -37,15 +37,19 @@ v1（Rails + Next.js）を、**GraphQL / Apollo / MUI / Rails 8** の構成で�
 
 ## スクリーンショット
 
-> 画面キャプチャは [docs/images/](./docs/images/) に配置します（順次追加）。
+> 実機（iPhone / Safari）で本番環境を撮影したものです。PC ブラウザでも同じ画面をレスポンシブに表示します。
 
-| ホーム（今日の一問 / streak / 復習バッジ） | 単語テスト |
-| --- | --- |
-| ![ホーム](./docs/images/home.png) | ![テスト](./docs/images/test.png) |
+**学習の導線** — ホームから単語帳・テストまで、迷わず学習に入れる構成。
 
-| 学習記録（カレンダー / streak） | 公式単語帳（親子階層） |
-| --- | --- |
-| ![学習記録](./docs/images/study-records.png) | ![公式単語帳](./docs/images/public-wordbooks.png) |
+| ホーム（今日の一問 / 復習バッジ） | ホーム（自作単語帳への導線） | 自作単語帳の一覧 | 単語テスト（自己採点） |
+| :---: | :---: | :---: | :---: |
+| <img src="./docs/images/top-01.jpg" width="200" alt="ホーム：今日の一問と復習単語バッジ"> | <img src="./docs/images/top-02.jpg" width="200" alt="ホーム：オリジナル単語帳の作成・テスト導線"> | <img src="./docs/images/wordbook-01.jpg" width="200" alt="自作単語帳の一覧"> | <img src="./docs/images/test-01.jpg" width="200" alt="単語テスト：答えを表示して正解・不正解を選ぶ"> |
+
+**継続の可視化** — 連続学習日数（streak）と学習記録で「積み上がっている感覚」をつくる。
+
+| 今週の streak | 学習カレンダー（月送り） | 学習記録の一覧 |
+| :---: | :---: | :---: |
+| <img src="./docs/images/top-03.jpg" width="200" alt="ホーム：今週の継続記録"> | <img src="./docs/images/dashboard-01.jpg" width="200" alt="学習記録：連続学習日数とカレンダー"> | <img src="./docs/images/dashboard-02.jpg" width="200" alt="学習記録：最近の学習記録一覧"> |
 
 ---
 
