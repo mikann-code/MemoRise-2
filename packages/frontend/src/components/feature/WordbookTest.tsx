@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRenameOutlineOutlined";
 import BookmarkAddOutlinedIcon from "@mui/icons-material/BookmarkAddOutlined";
 import BookmarkRemoveOutlinedIcon from "@mui/icons-material/BookmarkRemoveOutlined";
@@ -10,6 +11,7 @@ import {
   Button,
   JudgeButtons,
   TestProgress,
+  TestResultSummary,
 } from "@/components/common/ui";
 import { WordCard } from "@/components/common/card";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
@@ -20,8 +22,8 @@ import { StudyRecordKind } from "@/gql/graphql";
 type Word = { id: string; question: string; answer: string };
 
 // 結果画面のボタン内容（アイコン + 文字）を中央寄せする共通 sx。
-// アイコン有無で行ボックスの高さがぶれないよう、登録／一覧に戻るの両ボタンで同じ構造にして
-// 縦位置を揃える（Button は既定サイズだと display:block なので子側で中央寄せを担う）。
+// Button は既定サイズだと display:block なので、子側で中央寄せを担う。
+// アイコンの有無で高さがぶれないよう、一覧に戻る（アイコンなし）も同じ構造で包む。
 const buttonContentSx = {
   display: "flex",
   alignItems: "center",
@@ -41,7 +43,7 @@ type Props = {
  * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。
  * 誤答の復習タグは自動登録せず、結果画面の「間違えた単語を復習リストに登録」（confirm あり）で
  * まとめて登録する（docs/frontend.md §5）。
- * 完了で結果画面（正答率・間違えた単語一覧）を表示し、学習記録を 1 回だけ保存する
+ * 完了で結果画面（スコアのサマリー → 一括操作 → 間違えた単語一覧）を表示し、学習記録を 1 回だけ保存する
  * （hasPostedRef で Strict Mode の二重実行・二重送信を防止）。
  * wordbookId なしは復習専用テスト（記録は単語帳なし・戻り先は復習単語一覧）。
  * 結果画面の一括操作は wordbookId で役割を分ける：単語帳のテスト（自作・公式）は「登録」だけ、
@@ -174,63 +176,90 @@ export default function WordbookTest({ wordbookId, words }: Props) {
         />
 
         <Box sx={{ mt: 2 }}>
-          <TestProgress current={total} total={total} rate={rate} filled={total} />
+          {/* 一番上でスコア（何問正解したか）を見せる。 */}
+          <TestResultSummary correctCount={correctCount} total={total} />
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {wrongWords.map((w) => (
-              <WordCard
-                key={w.id}
-                question={w.question}
-                answer={w.answer}
-                opened
-                review={isTagged(w.id)}
-                onTagToggle={() => toggleTag(w.id)}
-                deletable={false}
-              />
-            ))}
-          </Box>
-
-          {/* 登録（復習ブランドのオレンジ + アイコン）と一覧へ戻る（青系）を横並びに。
-              色とアイコンで役割を区別し、同色 2 連ボタンを避ける。 */}
-          <Box
-            sx={{ mt: 2.5, display: "flex", alignItems: "stretch", gap: "12px" }}
-          >
-            {untaggedWrongWords.length > 0 && (
-              <Box sx={{ flex: 1 }}>
-                <Button onClick={handleRegisterWrongWords} disabled={registering}>
-                  <Box component="span" sx={buttonContentSx}>
-                    <BookmarkAddOutlinedIcon sx={{ fontSize: 18 }} />
-                    復習リストに登録
-                  </Box>
-                </Button>
-              </Box>
-            )}
-            {taggedCorrectWords.length > 0 && (
-              <Box sx={{ flex: 1 }}>
-                <Button onClick={handleRemoveCorrectWords} disabled={registering}>
-                  <Box component="span" sx={buttonContentSx}>
-                    <BookmarkRemoveOutlinedIcon sx={{ fontSize: 18 }} />
-                    覚えた単語を外す
-                  </Box>
-                </Button>
-              </Box>
-            )}
-            <Box sx={{ flex: 1 }}>
-              <Button
-                href={
-                  wordbookId
-                    ? `/wordbooks/${wordbookId}/list`
-                    : "/wordbooks/review"
-                }
-                color="#3b82f6"
-                hoverColor="#2563eb"
-              >
-                {/* 登録ボタンと縦位置を揃えるため、素のテキストも同じ flex 中央寄せで包む。 */}
+          {/* 一括操作はサマリーの直下（誤答一覧より前）に置き、結果を見てそのまま復習へ回せるようにする。
+              登録 = 単語帳のテスト（自作・公式）／解除 = 復習専用テストで、どちらか一方だけが出る。 */}
+          {untaggedWrongWords.length > 0 && (
+            <Box sx={{ mt: 2.5 }}>
+              <Button onClick={handleRegisterWrongWords} disabled={registering}>
                 <Box component="span" sx={buttonContentSx}>
-                  一覧に戻る
+                  <BookmarkAddOutlinedIcon sx={{ fontSize: 18 }} />
+                  間違えた単語 {untaggedWrongWords.length} 件を復習リストに登録
                 </Box>
               </Button>
             </Box>
+          )}
+          {taggedCorrectWords.length > 0 && (
+            <Box sx={{ mt: 2.5 }}>
+              <Button onClick={handleRemoveCorrectWords} disabled={registering}>
+                <Box component="span" sx={buttonContentSx}>
+                  <BookmarkRemoveOutlinedIcon sx={{ fontSize: 18 }} />
+                  覚えた単語を外す
+                </Box>
+              </Button>
+            </Box>
+          )}
+
+          {wrongWords.length > 0 ? (
+            <>
+              <Typography
+                sx={{
+                  mt: 3,
+                  fontSize: 12,
+                  color: "var(--color-font-secondary)",
+                }}
+              >
+                間違えた単語（{wrongWords.length} 件）
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                  mt: 1.25,
+                }}
+              >
+                {wrongWords.map((w) => (
+                  <WordCard
+                    key={w.id}
+                    question={w.question}
+                    answer={w.answer}
+                    opened
+                    review={isTagged(w.id)}
+                    onTagToggle={() => toggleTag(w.id)}
+                    deletable={false}
+                  />
+                ))}
+              </Box>
+            </>
+          ) : (
+            <Typography
+              sx={{
+                mt: 3,
+                fontSize: 13,
+                textAlign: "center",
+                color: "var(--color-font-secondary)",
+              }}
+            >
+              全問正解！間違えた単語はありません。
+            </Typography>
+          )}
+
+          <Box sx={{ mt: 2.5 }}>
+            <Button
+              href={
+                wordbookId ? `/wordbooks/${wordbookId}/list` : "/wordbooks/review"
+              }
+              color="#3b82f6"
+              hoverColor="#2563eb"
+            >
+              {/* 上のボタンと高さを揃えるため、素のテキストも同じ flex 中央寄せで包む。 */}
+              <Box component="span" sx={buttonContentSx}>
+                一覧に戻る
+              </Box>
+            </Button>
           </Box>
         </Box>
       </Box>
