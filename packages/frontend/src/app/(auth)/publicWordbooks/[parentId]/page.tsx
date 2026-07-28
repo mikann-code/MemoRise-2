@@ -83,8 +83,6 @@ export default function PublicWordbookParentPage() {
       />
 
       <Typography sx={{ color: "#cccccc", my: 1.5, lineHeight: 1.7 }}>
-        各 Part の単語リストはいつでも確認できます。
-        <br />
         テストを完了すると、次の Part が順番に解放されていきます。
       </Typography>
 
