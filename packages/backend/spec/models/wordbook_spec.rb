@@ -50,6 +50,31 @@ RSpec.describe Wordbook, type: :model do
     end
   end
 
+  describe "status enum（下書き / 公開中）" do
+    it {
+      is_expected.to define_enum_for(:status)
+        .with_values(draft: "draft", published: "published")
+        .backed_by_column_of_type(:string)
+    }
+
+    it "既定値は published（自作・seed を無影響にするため）" do
+      expect(Wordbook.new.status).to eq("published")
+    end
+
+    it "draft / published スコープで絞り込める" do
+      draft = create(:wordbook, :official, :draft)
+      published = create(:wordbook, :official)
+
+      expect(Wordbook.draft).to contain_exactly(draft)
+      expect(Wordbook.published).to contain_exactly(published)
+    end
+
+    it "draft? / published? 述語を持つ" do
+      expect(build(:wordbook, :official, :draft)).to be_draft
+      expect(build(:wordbook, :official)).to be_published
+    end
+  end
+
   describe "LABELS 定数（ラベル分類）" do
     it "許可するラベル値の集合を順序どおり持つ（フロント WORDBOOK_LABELS と一致）" do
       expect(Wordbook::LABELS).to eq(

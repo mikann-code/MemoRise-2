@@ -5,6 +5,8 @@ module Mutations
   # 章の label / level を省略した場合は親の値を引き継ぐ（教材単位で揃える運用のため）。
   # 単語は章にのみ登録できる設計（createAdminWord / importCsv）のため、親の作成時は
   # 既定の章「第1章」を同一トランザクションで 1 つ自動作成し、章ゼロの教材を作らない。
+  # 公開状態は既定で published（そのまま一般ユーザーに見える）。準備中の教材は status: DRAFT で
+  # 作り、整ってから setAdminWordbookStatus で公開する。
   class CreateAdminWordbook < BaseAdminWordbookMutation
     argument :title, String, required: true
     argument :description, String, required: false
@@ -12,8 +14,10 @@ module Mutations
     argument :level, String, required: false, description: "省略時、章は親の level を引き継ぐ"
     argument :parent_id, ID, required: false, description: "指定すると章（子）として作成"
     argument :order_index, Integer, required: false, description: "並び順"
+    argument :status, Types::WordbookStatusType, required: false,
+      description: "省略時は PUBLISHED。DRAFT を指定すると下書きとして作成する（章は親の値を引き継ぐ）"
 
-    def resolve(title:, description: nil, label: nil, level: nil, parent_id: nil, order_index: nil)
+    def resolve(title:, description: nil, label: nil, level: nil, parent_id: nil, order_index: nil, status: nil)
       return failure(forbidden_errors) unless current_admin
 
       parent = nil
@@ -30,6 +34,8 @@ module Mutations
         order_index: order_index || (parent && next_chapter_order(parent)),
         parent: parent,
         kind: :official,
+        # 章は親の公開状態に追従する。教材は指定があればそれ、無ければ既定の published。
+        status: parent&.status || status || :published,
         user: nil
       )
 
@@ -55,7 +61,7 @@ module Mutations
       parent.children.maximum(:order_index).to_i + 1
     end
 
-    # 教材に必ず 1 つは章がある状態を作る既定の章。label / level は親を引き継ぐ。
+    # 教材に必ず 1 つは章がある状態を作る既定の章。label / level / status は親を引き継ぐ。
     # タイトル等は作成後に updateAdminWordbook で変更できる。
     def create_default_chapter!(parent)
       parent.children.create!(
@@ -64,6 +70,7 @@ module Mutations
         label: parent.label,
         level: parent.level,
         kind: :official,
+        status: parent.status,
         user: nil
       )
     end

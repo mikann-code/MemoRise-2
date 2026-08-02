@@ -81,6 +81,16 @@ RSpec.describe Resolvers::WordbookProgresses do
       expect(data).to eq([])
     end
 
+    it "下書き（draft）の親では空配列を返し、遅延作成もしない" do
+      parent.update!(status: :draft)
+
+      expect {
+        @data = execute_progresses(parent.id).dig("data", "wordbookProgresses")
+      }.not_to change(UserWordbookProgress, :count)
+
+      expect(@data).to eq([])
+    end
+
     it "未認証は UNAUTHORIZED" do
       result = execute_progresses(parent.id, context: {})
 

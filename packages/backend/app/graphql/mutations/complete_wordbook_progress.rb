@@ -4,6 +4,7 @@ module Mutations
   # find_or_create_by! で作る。この 2 つを同一トランザクションで行い、
   # 「完了したのに次が解放されない／次が解放されたのに完了扱いにならない」不整合を防ぐ。
   # 二重送信はフロント（completedRef）が抑えるが、レコード方式なので冪等でもある。
+  # 下書き（draft）の教材の章は対象外（章は親の status を伝播で持つので章側で判定できる）。
   class CompleteWordbookProgress < BaseMutation
     argument :wordbook_id, ID, required: true, description: "完了した章（子単語帳）の ID"
 
@@ -15,7 +16,7 @@ module Mutations
     def resolve(wordbook_id:)
       return failure(unauthorized_errors) unless current_user
 
-      chapter = Wordbook.official.kept.where.not(parent_id: nil).find_by(id: wordbook_id)
+      chapter = Wordbook.official.kept.published.where.not(parent_id: nil).find_by(id: wordbook_id)
       return failure(not_found_errors) unless chapter
 
       ActiveRecord::Base.transaction do

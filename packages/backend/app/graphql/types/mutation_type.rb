@@ -15,6 +15,8 @@ module Types
       description: "公式単語帳の更新（管理者専用。親の label / level 変更は章へ伝播）"
     field :delete_admin_wordbook, mutation: Mutations::DeleteAdminWordbook,
       description: "公式単語帳の削除（管理者専用・論理削除）"
+    field :set_admin_wordbook_status, mutation: Mutations::SetAdminWordbookStatus,
+      description: "教材の公開状態の切り替え（管理者専用。章へ伝播）"
 
     # 公式単語帳の単語 CRUD（管理者専用）。教材・章どちらの公式単語帳も対象。
     field :create_admin_word, mutation: Mutations::CreateAdminWord,

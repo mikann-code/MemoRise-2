@@ -84,10 +84,11 @@ module Mutations
     end
 
     # 記録対象にできる単語帳：本人の自作 or 公式（章を含む）。論理削除済みは除く。
+    # 公式は公開中のみ（章は親の status を伝播で持つ）。下書きの教材では記録を作らせない。
     def find_studied_wordbook(id)
       wordbook = Wordbook.kept.find_by(id: id)
       return nil unless wordbook
-      return wordbook if wordbook.official?
+      return wordbook.published? ? wordbook : nil if wordbook.official?
 
       (wordbook.personal? && wordbook.user_id == current_user.id) ? wordbook : nil
     end

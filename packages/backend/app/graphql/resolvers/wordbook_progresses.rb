@@ -2,7 +2,8 @@ module Resolvers
   # 公式単語帳（親）の章ごとの解放状態を返す。解放は進捗レコードの存在で表現する。
   # 一覧取得時に先頭の章の進捗を遅延作成（lazy initialization）することで、
   # 初回でも先頭の章だけは解放済みになる（別途の初期化 API を持たない）。
-  # 認可は current_user スコープ（他人の進捗は混ざらない）。親が公式・存在でなければ空配列を返す。
+  # 認可は current_user スコープ（他人の進捗は混ざらない）。
+  # 親が公式・公開中・存在のいずれかを満たさなければ空配列を返す（下書きは進捗も作らない）。
   class WordbookProgresses < BaseResolver
     type [ Types::WordbookProgressType ], null: false
 
@@ -12,7 +13,7 @@ module Resolvers
     def resolve(wordbook_id:)
       require_user!
 
-      parent = Wordbook.official.kept.where(parent_id: nil).find_by(id: wordbook_id)
+      parent = Wordbook.official.kept.published.where(parent_id: nil).find_by(id: wordbook_id)
       return [] unless parent
 
       # 先頭の章の進捗を遅延作成する（冪等）。以降の章は完了時に解放される。

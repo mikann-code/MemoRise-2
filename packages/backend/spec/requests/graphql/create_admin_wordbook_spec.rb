@@ -7,15 +7,15 @@ RSpec.describe Mutations::CreateAdminWordbook do
     <<~GQL
       mutation CreateAdminWordbook(
         $title: String!, $description: String, $label: String, $level: String,
-        $parentId: ID, $orderIndex: Int
+        $parentId: ID, $orderIndex: Int, $status: WordbookStatus
       ) {
         createAdminWordbook(
           title: $title, description: $description, label: $label, level: $level,
-          parentId: $parentId, orderIndex: $orderIndex
+          parentId: $parentId, orderIndex: $orderIndex, status: $status
         ) {
           success
           errors { field message }
-          wordbook { id title label level orderIndex kind }
+          wordbook { id title label level orderIndex kind status }
         }
       }
     GQL
@@ -105,6 +105,39 @@ RSpec.describe Mutations::CreateAdminWordbook do
       expect(data["success"]).to be(true)
       expect(data["errors"]).to eq([])
       expect(data.dig("wordbook", "orderIndex")).to eq(1)
+    end
+  end
+
+  describe "公開状態（status）" do
+    it "status 省略時は公開中（published）で作成する" do
+      data = execute_create({ title: "すぐ公開する教材" })
+
+      expect(data.dig("wordbook", "status")).to eq("PUBLISHED")
+      expect(Wordbook.find(data.dig("wordbook", "id"))).to be_published
+    end
+
+    it "DRAFT を指定すると下書きで作成する" do
+      data = execute_create({ title: "準備中の教材", status: "DRAFT" })
+
+      expect(data.dig("wordbook", "status")).to eq("DRAFT")
+      expect(Wordbook.find(data.dig("wordbook", "id"))).to be_draft
+    end
+
+    it "下書きで作った教材の既定の章「第1章」も下書きになる" do
+      data = execute_create({ title: "準備中の教材", status: "DRAFT" })
+
+      chapter = Wordbook.find(data.dig("wordbook", "id")).children.first
+      expect(chapter).to be_draft
+    end
+
+    it "章は status 指定によらず親の公開状態を引き継ぐ" do
+      parent = create(:wordbook, :official, :draft)
+
+      data = execute_create(
+        { title: "章", parentId: parent.id.to_s, orderIndex: 1, status: "PUBLISHED" }
+      )
+
+      expect(data.dig("wordbook", "status")).to eq("DRAFT")
     end
   end
 

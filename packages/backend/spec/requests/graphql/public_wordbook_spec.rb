@@ -54,6 +54,15 @@ RSpec.describe Resolvers::PublicWordbook do
       expect(result["errors"]).to be_nil
     end
 
+    it "下書き（draft）の教材は取得できない（null。存在を教えない）" do
+      draft = create(:wordbook, :official, :draft, title: "準備中")
+
+      result = execute_graphql(query, variables: { id: draft.id.to_s }, context: { current_user: user })
+
+      expect(result.dig("data", "publicWordbook")).to be_nil
+      expect(result["errors"]).to be_nil
+    end
+
     it "存在しない id は null" do
       result = execute_graphql(query, variables: { id: "0" }, context: { current_user: user })
 

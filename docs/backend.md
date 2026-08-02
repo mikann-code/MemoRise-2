@@ -54,12 +54,17 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 | label | string | 公式のカテゴリ分類。`Wordbook::LABELS`（junior_high / eiken / toeic / official 等）に inclusion（official のみ・任意） |
 | level | string | 公式の難易度分類。`Wordbook::LEVELS`（basic / standard / advanced）に inclusion（official のみ・任意）。同一 label 内の段階分け用 |
 | order_index | integer | 章の並び順（表示番号「第○章」はフロントが並び位置から導出） |
+| status | string | 公開状態。Rails enum `draft` / `published`（not null・default `published`・index）。粒度は教材（親）単位で、章は親の値を伝播で持つ。後付け列なので `AddStatusToWordbooks` で追加（本番デプロイ済みのため既存 migration は修正しない） |
 | last_studied | datetime | 「最近開いた順」ソート用の最終閲覧日時。`openWordbook` が `touch_studied!` で更新する |
 | deleted_at | datetime | 論理削除 |
 | words_count | integer | counter_cache |
 
 - 自己参照 1:N：`belongs_to :parent` / `has_many :children`。親 = TOEIC 等、子 = Day/章。
 - ユニーク制約：`[parent_id, order_index]`、`uuid`。同一親内の順序衝突を DB レベルで防止。
+- **公開状態の粒度は教材（親）単位**。章ごとの段階公開はしない — 表示番号「第○章」が並び位置由来のため
+  中間章を隠すと番号が繰り上がり、進捗解放（`siblings[find_index + 1]`）も非公開章で詰まるため。
+  章は親の `status` を伝播で受け取る。単語は章にぶら下がるので、単語起点のクエリ（`todayWord` /
+  `createStudyRecord`）も親を join せず `.published` ひとつで絞れる。
 - `scope :active, -> { where(deleted_at: nil) }`。削除は `update!(deleted_at: Time.current)`。
 
 ### words
@@ -127,11 +132,13 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
     `WordbookType.words` は新しい順で返し、追加した単語が一覧の先頭に来るようにする。
     章（`WordbookType.children`）は解放順と直結するので `order_index` 昇順のまま。
   - `studyRecords` 系は current_user スコープで `study_details` 込みを返す（月別 = カレンダー用・日付昇順 / 週別 = startDate から 7 日分・週初めの月曜補正はフロント側 / 直近 = 新しい日付順・最大 30 件）。不正な年月は `BAD_REQUEST` を raise。
-  - `todayWord` は公式単語帳の単語（論理削除済み単語帳を除く）からランダム 1 件を返す軽実装。公式単語が 0 件なら null（フロントは `fallbackWords` に切り替え）。要ログイン。
+  - `todayWord` は公式単語帳の単語（論理削除済み・下書きの単語帳を除く）からランダム 1 件を返す軽実装。公式単語が 0 件なら null（フロントは `fallbackWords` に切り替え）。要ログイン。
+  - **一般ユーザー向けの公式単語帳は `.published` で絞る**（下書きは not found 相当で「存在を教えない」）。対象は `publicWordbooks` / `publicWordbook(id)` / `wordbookProgresses`（いずれも教材＝親で判定）と `todayWord` / `completeWordbookProgress` / `createStudyRecord`（章で判定。章は親の status を持つ）。`WordbookType.children` は一般・管理・管理 Mutation の戻り値で共用する出口のため、ここでは絞らない（絞ると管理画面から章が消える）。
   - 登録単語数は `me { wordsCount }`（`UserType` の `words_count` counter_cache フィールド）で取得する。`me` で取れるため専用の `totalWords` クエリは設けない。マイページの表示に使う。
-  - `wordbookProgresses(wordbookId)` は公式単語帳（親）の章ごとの解放状態（`WordbookProgress { id, wordbookId, completed }`）を返す。解放は進捗レコードの存在で表現し、取得時に先頭章の進捗を遅延作成（lazy initialization）する。公式でない/存在しない親は空配列。要ログイン。
-- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`createAdminWord` / `updateAdminWord` / `deleteAdminWord`、`importCsv`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `openWordbook`（冪等）/ `createStudyRecord` / `updateProfile` / `completeWordbookProgress`
-  - `createAdminWordbook` は `parentId` なしで教材（トップレベル）、ありで章（子）を作成する。単語は章にのみ登録できる設計のため、教材の作成時は既定の章「第1章」（order_index `1`・label / level は親を引き継ぐ）を同一トランザクションで 1 つ自動作成し、章ゼロの教材を作らない。章番号カラムは持たず、表示番号「第○章」はフロントが order_index 昇順の並び位置から導出する。章（子）は `orderIndex` 省略時に「同じ親の最大 order_index + 1」を末尾へ自動採番する（`order_index` は progress の章解放順と直結するため、管理 UI では数値を編集させず作成順に並べる）。
+  - `wordbookProgresses(wordbookId)` は公式単語帳（親）の章ごとの解放状態（`WordbookProgress { id, wordbookId, completed }`）を返す。解放は進捗レコードの存在で表現し、取得時に先頭章の進捗を遅延作成（lazy initialization）する。公式でない/下書き/存在しない親は空配列（下書きでは遅延作成もしない）。要ログイン。
+- 実装済み Mutation：`signUp` / `login` / `logout` / `adminLogin`、`createWordbook` / `updateWordbook` / `deleteWordbook`、`createWord` / `updateWord` / `deleteWord`、`createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook` / `setAdminWordbookStatus`、`createAdminWord` / `updateAdminWord` / `deleteAdminWord`、`importCsv`、`addTaggedWord` / `removeTaggedWord`（冪等）/ `openWordbook`（冪等）/ `createStudyRecord` / `updateProfile` / `completeWordbookProgress`
+  - `createAdminWordbook` は `parentId` なしで教材（トップレベル）、ありで章（子）を作成する。単語は章にのみ登録できる設計のため、教材の作成時は既定の章「第1章」（order_index `1`・label / level / status は親を引き継ぐ）を同一トランザクションで 1 つ自動作成し、章ゼロの教材を作らない。章番号カラムは持たず、表示番号「第○章」はフロントが order_index 昇順の並び位置から導出する。章（子）は `orderIndex` 省略時に「同じ親の最大 order_index + 1」を末尾へ自動採番する（`order_index` は progress の章解放順と直結するため、管理 UI では数値を編集させず作成順に並べる）。公開状態は `status`（GraphQL enum `WordbookStatus`：`DRAFT` / `PUBLISHED`）で指定し、省略時は `PUBLISHED`（章は指定によらず親の値を引き継ぐ）。
+  - `setAdminWordbookStatus(id, status)` は教材（トップレベルの公式・論理削除前）の公開状態を切り替え、同一トランザクションで章（論理削除済みを含む）へ伝播する。章・自作・削除済みは not found。公開状態の**更新の入口はここ 1 つ**に寄せ、`updateAdminWordbook` は `status` を受け付けない（作成時の初期値指定は `createAdminWordbook` の責務）。
   - `createAdminWord` / `updateAdminWord` / `deleteAdminWord` は公式単語帳の単語 CRUD。対象は「公式かつ論理削除前の単語帳に属する単語」に限定し、自作単語へ書く事故を構造的に防ぐ。単語を追加できるのは章（子単語帳）のみで、教材（親・トップレベル）は章の入れ物として単語を直接持たない（`createAdminWord` / `importCsv` は教材への登録を `wordbookId` エラーで拒否する）。`importCsv` は §3 の CSV 一括登録（行番号付きエラー・部分成功）。いずれも admin コンテキスト必須。
   - `createStudyRecord` は「日次サマリーの増分更新 + 詳細追加 + streak 更新」を 1 トランザクションで行う（§3）。
     単語帳の `last_studied` はここでは触らない（更新は `openWordbook` の責務）。

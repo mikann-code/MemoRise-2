@@ -69,6 +69,16 @@ RSpec.describe Resolvers::PublicWordbooks do
       expect(titles).to eq([ "公開中" ])
     end
 
+    it "下書き（draft）の教材は除外する" do
+      create(:wordbook, :official, :draft, title: "準備中")
+      create(:wordbook, :official, title: "公開中")
+
+      result = execute_graphql(query, context: { current_user: user })
+      titles = result.dig("data", "publicWordbooks").map { |w| w["title"] }
+
+      expect(titles).to eq([ "公開中" ])
+    end
+
     it "未認証は UNAUTHORIZED" do
       create(:wordbook, :official, title: "公式帳")
 

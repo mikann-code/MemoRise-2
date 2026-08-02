@@ -111,6 +111,17 @@ RSpec.describe Mutations::CompleteWordbookProgress do
       expect(data.dig("errors", 0, "field")).to eq("wordbookId")
     end
 
+    it "下書き（draft）の教材の章は完了できない" do
+      ch1.update!(status: :draft)
+
+      expect {
+        @data = execute_complete(ch1.id)
+      }.not_to change(UserWordbookProgress, :count)
+
+      expect(@data["success"]).to be(false)
+      expect(@data.dig("errors", 0, "field")).to eq("wordbookId")
+    end
+
     it "未認証は完了できない（system エラー）" do
       expect {
         @data = execute_complete(ch1.id, context: {})
