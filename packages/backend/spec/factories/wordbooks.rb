@@ -14,5 +14,10 @@ FactoryBot.define do
     trait :discarded do
       deleted_at { Time.current }
     end
+
+    # 下書き（一般ユーザーからは見えない）。既定は published。
+    trait :draft do
+      status { :draft }
+    end
   end
 end

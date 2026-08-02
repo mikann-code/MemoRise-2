@@ -47,6 +47,15 @@ RSpec.describe Resolvers::TodayWord do
 
       expect(result.dig("data", "todayWord")).to be_nil
     end
+
+    it "下書き（draft）の公式単語帳の単語は出題しない" do
+      draft = create(:wordbook, :official, :draft)
+      create(:word, :official, wordbook: draft, user: nil, question: "draft")
+
+      result = execute_graphql(query, context: { current_user: user })
+
+      expect(result.dig("data", "todayWord")).to be_nil
+    end
   end
 
   describe "公式単語 0 件時" do

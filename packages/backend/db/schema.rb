@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_27_080715) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -96,6 +96,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_27_080715) do
     t.string "level"
     t.integer "order_index"
     t.bigint "parent_id"
+    t.string "status", default: "published", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id"
@@ -103,6 +104,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_27_080715) do
     t.index ["deleted_at"], name: "index_wordbooks_on_deleted_at"
     t.index ["parent_id", "order_index"], name: "index_wordbooks_on_parent_id_and_order_index", unique: true
     t.index ["parent_id"], name: "index_wordbooks_on_parent_id"
+    t.index ["status"], name: "index_wordbooks_on_status"
     t.index ["user_id"], name: "index_wordbooks_on_user_id"
   end
 

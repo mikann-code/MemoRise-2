@@ -3,6 +3,7 @@
 import { type FormEvent, use, useState } from "react";
 import NextLink from "next/link";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -24,7 +25,10 @@ import { useCreateAdminWordbookMutation } from "@/graphql/mutations/createAdminW
 import { useCreateAdminWordMutation } from "@/graphql/mutations/createAdminWord";
 import { useUpdateAdminWordMutation } from "@/graphql/mutations/updateAdminWord";
 import { useDeleteAdminWordMutation } from "@/graphql/mutations/deleteAdminWord";
+import { useSetAdminWordbookStatusMutation } from "@/graphql/mutations/setAdminWordbookStatus";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
+import { statusLabel } from "@/constants/wordbookStatuses";
+import { WordbookStatus } from "@/gql/graphql";
 import {
   pickFieldError,
   pickSystemError,
@@ -47,7 +51,7 @@ type Props = { params: Promise<{ id: string }> };
 
 export default function AdminWordbookDetailPage({ params }: Props) {
   const { id } = use(params);
-  const { notify } = useSnackbar();
+  const { confirm, notify } = useSnackbar();
 
   const { data, loading, error, refetch } = useAdminWordbookQuery({
     variables: { id },
@@ -55,11 +59,13 @@ export default function AdminWordbookDetailPage({ params }: Props) {
   });
   const wordbook = data?.adminWordbook ?? null;
   const isTopLevel = wordbook != null && wordbook.parentId == null;
+  const isDraft = wordbook?.status === WordbookStatus.Draft;
 
   const [createChapter, { loading: addingChapter }] = useCreateAdminWordbookMutation();
   const [createWord, { loading: addingWord }] = useCreateAdminWordMutation();
   const [updateWord, { loading: updatingWord }] = useUpdateAdminWordMutation();
   const [deleteWord] = useDeleteAdminWordMutation();
+  const [setStatus, { loading: switchingStatus }] = useSetAdminWordbookStatusMutation();
 
   // 章の追加フォーム（並び順は BE が末尾に自動採番するため入力欄は持たない）
   const [chTitle, setChTitle] = useState("");
@@ -217,6 +223,36 @@ export default function AdminWordbookDetailPage({ params }: Props) {
     }
   };
 
+  // 公開状態の切り替え（教材のみ）。確認 → 切り替え → 通知。章へは BE 側で伝播する。
+  const handleToggleStatus = async () => {
+    const toDraft = wordbook?.status === WordbookStatus.Published;
+
+    const ok = await confirm(
+      toDraft
+        ? "この教材の公開を停止しますか？\n一般ユーザーの一覧から表示されなくなります。"
+        : "この教材を公開しますか？\n一般ユーザーの一覧に表示されます。",
+    );
+    if (!ok) return;
+
+    try {
+      const { data: result } = await setStatus({
+        variables: {
+          id,
+          status: toDraft ? WordbookStatus.Draft : WordbookStatus.Published,
+        },
+      });
+      if (!result?.setAdminWordbookStatus?.success) {
+        notify("公開状態の変更に失敗しました");
+        return;
+      }
+      notify(toDraft ? "公開を停止しました" : "公開しました");
+    } catch {
+      notify("公開状態の変更に失敗しました");
+    } finally {
+      await refetch();
+    }
+  };
+
   const chSystemError = pickSystemError(chErrors, KNOWN_FIELDS);
   const wordSystemError = pickSystemError(wordErrors, KNOWN_FIELDS);
   const editSystemError = pickSystemError(editErrors, KNOWN_FIELDS);
@@ -228,16 +264,41 @@ export default function AdminWordbookDetailPage({ params }: Props) {
         backHref={backHref}
         backLabel="戻る"
         action={
-          <Button
-            href={`/admin/wordbooks/${id}/edit`}
-            size="compact"
-            color="#3b82f6"
-            hoverColor="#2563eb"
-          >
-            <EditOutlinedIcon sx={{ fontSize: 16 }} /> 編集
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {/* 公開状態の切り替えは教材（親）単位。章は親に追従するのでトグルを出さない。 */}
+            {isTopLevel && (
+              <Button
+                size="compact"
+                onClick={handleToggleStatus}
+                disabled={switchingStatus}
+                color={isDraft ? "#16a34a" : "#b45309"}
+                hoverColor={isDraft ? "#15803d" : "#92400e"}
+              >
+                {isDraft ? "公開する" : "公開を停止"}
+              </Button>
+            )}
+            <Button
+              href={`/admin/wordbooks/${id}/edit`}
+              size="compact"
+              color="#3b82f6"
+              hoverColor="#2563eb"
+            >
+              <EditOutlinedIcon sx={{ fontSize: 16 }} /> 編集
+            </Button>
+          </Box>
         }
       />
+
+      {/* 公開状態のバッジ。章は親に追従するため教材のときだけ出す。 */}
+      {isTopLevel && (
+        <Chip
+          size="small"
+          label={statusLabel(wordbook.status)}
+          color={isDraft ? "warning" : "success"}
+          variant={isDraft ? "filled" : "outlined"}
+          sx={{ mb: 2 }}
+        />
+      )}
 
       {wordbook.description && (
         <Typography sx={{ color: "#bbbbbb", fontSize: 14, mb: 3 }}>

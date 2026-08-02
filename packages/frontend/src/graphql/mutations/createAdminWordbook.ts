@@ -4,7 +4,7 @@ import { useMutation } from "@apollo/client/react";
 import { graphql } from "@/gql";
 import type { CreateAdminWordbookMutationVariables } from "@/gql/graphql";
 
-/** 公式単語帳の作成（管理者専用。parentId 指定で章を作成）。 */
+/** 公式単語帳の作成（管理者専用。parentId 指定で章を作成。status 省略時は公開中）。 */
 export const CreateAdminWordbookDocument = graphql(`
   mutation CreateAdminWordbook(
     $title: String!
@@ -13,6 +13,7 @@ export const CreateAdminWordbookDocument = graphql(`
     $level: String
     $parentId: ID
     $orderIndex: Int
+    $status: WordbookStatus
   ) {
     createAdminWordbook(
       title: $title
@@ -21,6 +22,7 @@ export const CreateAdminWordbookDocument = graphql(`
       level: $level
       parentId: $parentId
       orderIndex: $orderIndex
+      status: $status
     ) {
       success
       errors {
@@ -31,6 +33,7 @@ export const CreateAdminWordbookDocument = graphql(`
         id
         title
         parentId
+        status
       }
     }
   }

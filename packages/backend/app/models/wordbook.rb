@@ -20,6 +20,14 @@ class Wordbook < ApplicationRecord
   # official? / personal? / shared? 述語と同名スコープが自動生成される。
   enum :kind, { official: "official", personal: "personal", shared: "shared" }, default: "personal"
 
+  # 公開状態。draft = 下書き（一般ユーザーからは存在しないものとして扱う）、
+  # published = 公開中。粒度は教材（parent_id: nil）単位で、章（子）は親の値を伝播で持つ
+  # （章ごとの段階公開はしない。章番号が並び位置由来で繰り上がり、進捗解放も詰まるため）。
+  # 単語は章にぶら下がるため、章も同じ値を持つことで単語起点のクエリも .published 一つで絞れる。
+  # 既定は published。自作（personal）は status を使わないが、既定値により常に公開扱いになる。
+  # draft? / published? 述語と同名スコープが自動生成される。
+  enum :status, { draft: "draft", published: "published" }, default: "published"
+
   # user_id: nil = 公式 / 値あり = 自作
   belongs_to :user, optional: true
   # 自己参照（親 = TOEIC 等、子 = Day/章）

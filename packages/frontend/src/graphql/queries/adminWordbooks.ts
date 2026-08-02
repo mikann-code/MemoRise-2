@@ -14,6 +14,7 @@ export const AdminWordbooksDocument = graphql(`
       label
       level
       wordsCount
+      status
     }
   }
 `);

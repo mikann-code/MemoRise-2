@@ -158,6 +158,19 @@ RSpec.describe Mutations::CreateStudyRecord do
       expect(data.dig("errors", 0, "field")).to eq("wordbookId")
     end
 
+    it "下書き（draft）の公式単語帳では記録できない（wordbookId エラー）" do
+      draft_chapter = create(:wordbook, :official, :draft, parent: create(:wordbook, :official, :draft))
+
+      expect {
+        @data = execute_create(
+          { kind: "WORDBOOK", totalCount: 1, correctCount: 1, wordbookId: draft_chapter.id.to_s }
+        )
+      }.not_to change(StudyRecord, :count)
+
+      expect(@data["success"]).to be(false)
+      expect(@data.dig("errors", 0, "field")).to eq("wordbookId")
+    end
+
     it "未認証は記録できない（system エラー）" do
       expect {
         @data = execute_create({ kind: "REVIEW", totalCount: 1, correctCount: 1 }, context: {})

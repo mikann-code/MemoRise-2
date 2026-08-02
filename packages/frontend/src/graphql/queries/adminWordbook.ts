@@ -16,6 +16,7 @@ export const AdminWordbookDocument = graphql(`
       orderIndex
       wordsCount
       parentId
+      status
       children {
         id
         title
