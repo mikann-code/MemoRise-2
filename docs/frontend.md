@@ -19,6 +19,12 @@ App Router の Route Group `(xxx)` で、URL に出さずに権限ごとに空�
   `SectionTitle` + `ErrorCard` でテーマを揃え、ホーム / 単語帳一覧への戻り導線を出す。
 - 管理空間は共通 Header を持たないため、各ページは `Container` と共通の戻り導線ヘッダ（`(admin)/admin/_components/AdminPageHeader`）で構成する。
 - 公式単語帳は「教材（トップレベル）→ 章（children）→ 単語」を `/admin/wordbooks/[id]` の遷移で辿る。章も単語帳なので同じ詳細画面で管理するが、単語を登録できるのは章のみ（教材は章の入れ物で単語を直接持たない。教材では章の一覧・追加フォームを、章では単語フォーム・CSV 取込を出し分ける。バックエンド側も教材への単語登録を拒否する）。教材を作成すると既定の章「第1章」がバックエンドで自動作成されるため、詳細画面には最初から章が 1 つ並ぶ。
+- 教材の**公開状態**（下書き / 公開中）はメルカリの出品を参考にした導線で扱う。作成画面（`/admin/wordbooks/new`）の
+  送信ボタンを「公開して作成」/「下書きに保存」の 2 つに分け、押したボタンで `status` を出し分ける。
+  作成後は教材詳細（`/admin/wordbooks/[id]`）のバッジ（`Chip`）で状態を示し、ヘッダの「公開する」/「公開を停止」で
+  切り替える（確認は `useSnackbar()` の `confirm`、完了は `notify`）。切り替えは教材（親）単位で、章にはトグルを出さない
+  （章は親に追従する。理由は [backend.md](./backend.md) §2 の wordbooks）。表示名は `constants/wordbookStatuses.ts` が持ち、
+  管理一覧の本カードは下書きのときだけ「下書き」バッジを出す（一般ユーザーには公開中しか届かないので表示は変わらない）。
 
 - 親子単語帳は `/[parentId]/[childrenId]` の二段ルーティングで「TOEIC > Day 1」のような体系を表現。
 - `(auth)` は `AuthProvider`（`me` クエリ）でガードし、未認証は `/login` へリダイレクト。`(admin)` は `AdminAuthProvider`（`adminMe`）で同様にガードする。
