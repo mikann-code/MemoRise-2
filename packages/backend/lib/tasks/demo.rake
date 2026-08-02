@@ -18,7 +18,7 @@ namespace :demo do
       {
         title: "【DEMO】英検3級 単語",
         label: "eiken",
-        level: "3",
+        level: "basic",
         description: "動作確認用のデモ単語帳（英検3級）",
         chapters: [
           {
