@@ -13,11 +13,14 @@ import { useCreateAdminWordbookMutation } from "@/graphql/mutations/createAdminW
 import { useFieldErrors } from "@/lib/forms/fieldErrors";
 import { WORDBOOK_LABELS } from "@/constants/wordbookLabels";
 import { WORDBOOK_LEVELS } from "@/constants/wordbookLevels";
+import { WordbookStatus } from "@/gql/graphql";
 import AdminPageHeader from "../../_components/AdminPageHeader";
 
 /**
  * 公式単語帳（教材）の新規作成。タイトル / 説明 / ラベル / レベルを入力する。
  * ラベルはバックエンド Wordbook::LABELS に一致する選択式（値検証は BE）。
+ * 公開状態は送信ボタンで選ぶ（「公開して作成」= PUBLISHED / 「下書きに保存」= DRAFT）。
+ * 下書きは一般ユーザーに出ず、教材詳細のトグルから後で公開できる。
  */
 
 export default function NewAdminWordbookPage() {
@@ -35,8 +38,8 @@ export default function NewAdminWordbookPage() {
     "level",
   ]);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  // 押されたボタンで公開状態を出し分ける（form の onSubmit は使わず各ボタンから直接呼ぶ）。
+  const handleCreate = async (status: WordbookStatus) => {
     setErrors([]);
 
     if (!title.trim()) {
@@ -51,6 +54,7 @@ export default function NewAdminWordbookPage() {
           description,
           label: label || null,
           level: level || null,
+          status,
         },
       });
       const payload = data?.createAdminWordbook;
@@ -76,7 +80,15 @@ export default function NewAdminWordbookPage() {
         backLabel="公式単語帳の管理"
       />
 
-      <Box component="form" onSubmit={handleSubmit} noValidate>
+      <Box
+        component="form"
+        onSubmit={(e: FormEvent) => {
+          // Enter キーでの送信は既定の導線（公開して作成）に寄せる。
+          e.preventDefault();
+          void handleCreate(WordbookStatus.Published);
+        }}
+        noValidate
+      >
         <FloatingInput
           id="title"
           label="教材タイトル"
@@ -137,9 +149,24 @@ export default function NewAdminWordbookPage() {
 
         <FormError message={systemError} />
 
-        <Button type="submit" disabled={loading}>
-          {loading ? "作成中..." : "作成"}
-        </Button>
+        <Box sx={{ display: "flex", gap: "10px" }}>
+          <Box sx={{ flex: 1 }}>
+            <Button type="submit" disabled={loading}>
+              {loading ? "作成中..." : "公開して作成"}
+            </Button>
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Button
+              type="button"
+              onClick={() => handleCreate(WordbookStatus.Draft)}
+              disabled={loading}
+              color="#3b82f6"
+              hoverColor="#2563eb"
+            >
+              下書きに保存
+            </Button>
+          </Box>
+        </Box>
       </Box>
     </Container>
   );

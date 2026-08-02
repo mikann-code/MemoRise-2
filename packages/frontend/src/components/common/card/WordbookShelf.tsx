@@ -5,10 +5,20 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 import { levelLabel } from "@/constants/wordbookLevels";
+import { statusLabel } from "@/constants/wordbookStatuses";
 
-export type ShelfBookItem = { id: string; title: string; level?: string | null };
+export type ShelfBookItem = {
+  id: string;
+  title: string;
+  level?: string | null;
+  // 公開状態。管理一覧でのみ渡す（一般ユーザーには published しか届かないので下書きバッジは出ない）。
+  status?: string | null;
+};
 
-/** 教材 1 冊の本カード（アイコン + タイトル + レベルのピル）。href 先の詳細へ遷移する。 */
+/**
+ * 教材 1 冊の本カード（アイコン + タイトル + レベルのピル）。href 先の詳細へ遷移する。
+ * 下書き（DRAFT）のときだけタイトル上に「下書き」バッジを出す。
+ */
 export function BookCard({
   item,
   href,
@@ -39,6 +49,22 @@ export function BookCard({
       <AutoStoriesOutlinedIcon
         sx={{ fontSize: 56, color: "var(--color-font-secondary)" }}
       />
+      {item.status === "DRAFT" && (
+        <Typography
+          sx={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#ffffff",
+            backgroundColor: "#b45309",
+            borderRadius: "999px",
+            px: 1.25,
+            py: 0.25,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {statusLabel(item.status)}
+        </Typography>
+      )}
       <Typography
         sx={{
           fontSize: 14,
