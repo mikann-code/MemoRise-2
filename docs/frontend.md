@@ -46,7 +46,7 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 
 | 階層 | 役割 | 現状の中身 |
 | --- | --- | --- |
-| `common/ui/` | 汎用パーツ | Button / FloatingInput / FormError / JudgeButtons / LoadingSpinner / SectionTitle |
+| `common/ui/` | 汎用パーツ | Button / FloatingInput / FormError / JudgeButtons / LoadingSpinner / LoadingContainer / EmptyState / SectionTitle / TestProgress / TestResultSummary |
 | `common/card/` | カード | WordCard / WordbookShelf（単語帳の本棚表示）/ ErrorCard / DailyRecordCard（学習記録 1 日分） |
 | `layout/` | レイアウト | Layout（共通シェル）/ Header / Footer / FormLayout / WordbookListLayout |
 | `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / ReviewTagProvider / PublicWordbookTest / WordbookTest / StudyCalendar（学習カレンダー） |
@@ -133,7 +133,10 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 
 ## 8. その他の UI / UX 指針（踏襲）
 
-- 未ログイン・通信失敗時のフォールバック（リッチな空状態、「ログイン / 新規登録」への導線）。
+- データ 0 件・通信失敗時のフォールバックを共通部品に寄せる。空状態は `EmptyState`（アイコン / 見出し /
+  補足 / アクションの Slot 型）、エラーは `ErrorCard` を使い、ページごとにバラバラな空表示を作らない。
+  未ログイン時は `(auth)` のガードが `/login` へリダイレクトするため、認証必須ページに未ログイン向けの
+  空状態は置かない（未ログインで到達するのは `(public)` と `app/not-found.tsx` のみ）。
 - **window.confirm / window.alert は使わない**。`components/feature/SnackbarProvider` の `useSnackbar()` を使う：`confirm(message)` は画面全体を暗転させ中央にカード型ダイアログ（キャンセル / OK は flex 均等幅）を出して `Promise<boolean>` を返す。`notify(message)` は confirm と同じ画面中央に一定時間表示して自動で消える（暗転しない非モーダル通知）。`app/providers.tsx` でアプリ全体に mount 済み。
 - 週初めを月曜に補正：`(jsDay - 1 + 7) % 7`。
 - メタデータ（title / description）と多言語フォント（Noto Sans JP 等）を `RootLayout` で設定。
