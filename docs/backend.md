@@ -1,6 +1,6 @@
 # バックエンド設計（MemoRise v2）
 
-> v1（Rails 8.1 API モード / REST / JWT / MySQL）のデータモデルとビジネスロジックを抽出し、v2 スタック（Rails 8.1 + **GraphQL（graphql-ruby）** + PostgreSQL + Solid Queue/Cache/Cable）前提で再構成したもの。ドメイン設計は v1 を踏襲し、API 表現を REST から GraphQL に置き換える。
+> v1（Rails 8.1 API モード / REST / JWT / MySQL）のデータモデルとビジネスロジックを抽出し、v2 スタック（Rails 8.1 + **GraphQL（graphql-ruby）** + PostgreSQL）前提で再構成したもの。ドメイン設計は v1 を踏襲し、API 表現を REST から GraphQL に置き換える。Solid Queue / Cache / Cable は採用予定で現時点は未導入（§1）。
 
 ## 1. 全体方針
 
@@ -11,7 +11,7 @@
 
 ## 2. データモデル
 
-v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
+v1 のスキーマを踏襲する。現行のスキーマは `packages/backend/db/schema.rb`（version 2026_08_02_000001）が正。
 
 ### users
 | カラム | 型 | 備考 |
@@ -23,7 +23,10 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 | streak | integer | default 0（連続学習日数） |
 | last_study_date | date | streak 計算用 |
 | words_count | integer | counter_cache |
+| confirmation_token / confirmation_sent_at / confirmed_at | string / datetime / datetime | **未使用**（メール確認機能は未実装。カラムだけ先に用意してある） |
 
+- 管理者は**別テーブルを作らず `role` で判別**する（`user` / `admin`）。`GraphqlController` が
+  `role` を見て `current_user`（一般）/ `current_admin`（管理者）に振り分ける（§5）。
 - `after_create :create_default_wordbook` で「はじめての単語帳」を自動生成。
 - `update_streak!`：今日未更新かつ昨日学習済みなら +1、そうでなければ 1。`update_columns` で軽量更新、二度押し冪等。
   判定が「読んでから書く」ため、`with_lock`（`SELECT ... FOR UPDATE`）で行を直列化し、同日の並行リクエストによる二重加算を防ぐ。
@@ -32,24 +35,13 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
   カラムを書き換えず参照時に算出するので、補正処理の呼び忘れで古い日数が出続けることがない。
   `UserType.streak` はこの値を返す（`method: :current_streak`）。
 
-### admin_users（設計案・未実装）
-| カラム | 型 |
-| --- | --- |
-| email | string |
-| password_digest | string |
-
-- 設計では管理者を users と**別テーブル**で管理（権限境界の物理分離）としていたが、
-  **現状は `users.role` で管理者を判定**しており `admin_users` テーブルは作っていない。
-  別テーブル化するかは未確定（要決定）。
-
 ### wordbooks（公式・自作を 1 テーブルで表現）
 | カラム | 型 | 備考 |
 | --- | --- | --- |
-| uuid | string | 外部公開 ID（unique） |
 | title | string | not null |
 | description | text | |
-| user_id | bigint | nil = 公式 / 値あり = 自作 |
-| is_official | boolean | default false |
+| kind | string | 種類。Rails enum `official`（公式）/ `personal`（自作）/ `shared`（共有）。not null・default `personal`。`shared` は種類だけ定義してあり、この kind を作る機能は未実装（将来用） |
+| user_id | bigint | 所有者。`personal` は値あり（本人）、`official` は nil |
 | parent_id | bigint | 自己参照（親子階層） |
 | label | string | 公式のカテゴリ分類。`Wordbook::LABELS`（junior_high / eiken / toeic / official 等）に inclusion（official のみ・任意） |
 | level | string | 公式の難易度分類。`Wordbook::LEVELS`（basic / standard / advanced）に inclusion（official のみ・任意）。同一 label 内の段階分け用 |
@@ -60,17 +52,22 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 | words_count | integer | counter_cache |
 
 - 自己参照 1:N：`belongs_to :parent` / `has_many :children`。親 = TOEIC 等、子 = Day/章。
-- ユニーク制約：`[parent_id, order_index]`、`uuid`。同一親内の順序衝突を DB レベルで防止。
+- ユニーク制約：`[parent_id, order_index]`。同一親内の順序衝突を DB レベルで防止。
 - **公開状態の粒度は教材（親）単位**。章ごとの段階公開はしない — 表示番号「第○章」が並び位置由来のため
   中間章を隠すと番号が繰り上がり、進捗解放（`siblings[find_index + 1]`）も非公開章で詰まるため。
   章は親の `status` を伝播で受け取る。単語は章にぶら下がるので、単語起点のクエリ（`todayWord` /
   `createStudyRecord`）も親を join せず `.published` ひとつで絞れる。
-- `scope :active, -> { where(deleted_at: nil) }`。削除は `update!(deleted_at: Time.current)`。
+- 論理削除は `scope :kept`（`deleted_at: nil`）/ `scope :discarded` と、`discard!` / `undiscard!`（どちらも
+  validation・callback を介さない `update_columns`）。一覧は `.kept` で削除済みを除外する。
+  `discard!` では `words` を消さないので `undiscard!` で中身ごと復元できる。連鎖は self のみ（章へは波及しない）。
+  **章（`parent_id` あり）の `discard!` は `order_index` を NULL にする** — ユニーク制約
+  `[parent_id, order_index]` の席を占有し続けると同じ並び順での再作成が DB レベルで弾かれるため
+  （復元時は order_index を振り直す運用）。親（`parent_id: nil`）は NULL を含む組が重複扱いにならず
+  席が競合しないので、並び順を保持したまま残す。
 
 ### words
 | カラム | 型 | 備考 |
 | --- | --- | --- |
-| uuid | string | unique |
 | question | string | not null |
 | answer | string | not null |
 | wordbook_id | bigint | counter_cache |
@@ -120,6 +117,7 @@ v1 のスキーマ（`schema.rb` version 2026_02_05）を踏襲する。
 ## 4. GraphQL スキーマ設計（v2 / REST からの移行）
 
 v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピングする。
+v1 は外部公開 ID に `uuid` を使っていたが、**v2 は `uuid` カラムを持たず `id` で引く**（表の左列の `:uuid` は v1 側の表記）。
 
 > スキーマ（`schema.graphql`）の出力 → フロント型生成（Codegen）までの運用手順は [graphql.md](./graphql.md)。
 
@@ -166,7 +164,7 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 | `GET /stats/total_words` | `me { wordsCount }`（専用クエリは設けず `User` 型のフィールドで取得） |
 | `GET /wordbooks` `/wordbooks/:uuid` | `myWordbooks` / `myWordbook(id)`（自作のみ・本人スコープ） |
 | `GET /wordbooks/:uuid/words` | `myWordbook.words` |
-| `GET /public_wordbooks` `:uuid/children` `:uuid/words` | `publicWordbooks` / `publicWordbook(uuid){ children, words }` |
+| `GET /public_wordbooks` `:uuid/children` `:uuid/words` | `publicWordbooks` / `publicWordbook(id){ children, words }` |
 | `GET /user_word_tags` | `taggedWords` |
 | `GET /study_records` `recent` `week` | `studyRecords(year,month)` / `studyRecordsRecent` / `studyRecordsWeek(startDate)` |
 | `GET /user_wordbook_progresses` | `wordbookProgresses` |
@@ -179,14 +177,14 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 | `PUT /me` | `updateProfile` |
 | `POST /wordbooks` `PUT/DELETE` | `createWordbook` / `updateWordbook` / `deleteWordbook` |
 | `POST /wordbooks/:uuid/words` `DELETE` | `createWord` / `updateWord` / `deleteWord`（`updateWord` は v2 追加） |
-| `POST /wordbooks/:uuid/study` | `studyWordbook` |
+| `POST /wordbooks/:uuid/study` | `createStudyRecord`（学習記録の保存）/ `openWordbook`（最終閲覧日時の更新）に分割 |
 | `POST/DELETE /user_word_tags` | `addTaggedWord` / `removeTaggedWord` |
 | `POST /study_records` | `createStudyRecord` |
 | `POST /user_wordbook_progresses/complete` | `completeWordbookProgress` |
 
 ### 管理者（Query / Mutation）
 - `adminLogin` / `adminMe`、`adminUsers`、`adminStats`。
-- `adminWordbooks` / `adminWordbook(uuid){ children, words }`。
+- `adminWordbooks` / `adminWordbook(id){ children, words }`。
 - `createAdminWordbook` / `updateAdminWordbook` / `deleteAdminWordbook`、`createAdminWord` / `updateAdminWord` / `deleteAdminWord`、`importCsv`。
 
 ### 認可方針
@@ -202,20 +200,23 @@ v1 の REST エンドポイントを GraphQL の Query / Mutation にマッピ�
 - `login` / `signUp` Mutation の成功時に `session[:user_id]` を設定し、`logout` Mutation で `reset_session`（`sessions` レコードも破棄）。**トークンは発行・返却しない**。`logout` はログイン状態に関わらず常に成功を返す冪等仕様。
 - `GraphqlController` が毎リクエストで `session[:user_id]` から `User` を解決し、`role` で `current_user`（一般）/ `current_admin`（管理者）に振り分けて GraphQL コンテキストに載せる。
 - ログイン失敗時はメール存在の有無を秘匿して同一メッセージ（`UNAUTHORIZED`）を返す。
-- 管理者認証は `adminLogin` / `adminMe` として実装済み。`current_admin` は **単一 `users` テーブルの `role`** から解決しており、§2 の `admin_users` 別テーブル設計とどちらを採るかは未確定（要決定）。
+- 管理者認証は `adminLogin` / `adminMe` として実装済み。`current_admin` は **単一 `users` テーブルの `role`** から解決する（§2 users）。権限境界は別テーブルではなく Resolver 層の認可で担保する。
 
 ## 6. 横断的関心事
 
 - **CORS**：`ENV["FRONTEND_URL"]` 等を `.compact` した明示ホワイトリスト。`credentials: true`。ワイルドカード不使用。
 - **ログフィルタ**：passw / email / secret / token / _key / crypt / salt / certificate / otp / ssn / cvv / cvc を除外。
 - **ロケール**：`config/locales/ja.yml`。タイムゾーン JST。
-- **ヘルスチェック**：`GET /up`（Kamal / LB 監視用）。
+- **ヘルスチェック**：`GET /up`（Render のヘルスチェック用）。
 - **品質**：RuboCop（omakase）/ Brakeman / bundler-audit（導入済み）。
 - **画像 / メール**（未導入・予定）：Active Storage + image_processing（S3）、SES v2（メール）。
-- **デプロイ**（未導入・予定）：Kamal（`.kamal/` + `config/deploy.yml`）。
+- **デプロイ**：本番は **Render**（バックエンド / Docker・起動時に `db:migrate`）・**Vercel**（フロント）・
+  **Neon**（PostgreSQL）で稼働中（構成は [tech-stack.md](./tech-stack.md)）。Kamal + AWS へ移す選択肢は
+  将来の候補として残しているが未導入。
 
 ## 7. v1 → v2 移行で注意する点
 
-- REST の「動詞エンドポイント」（`/wordbooks/:uuid/study`）は GraphQL Mutation（`studyWordbook`）に自然に移せる。
+- REST の「動詞エンドポイント」（`/wordbooks/:uuid/study`）は GraphQL Mutation に自然に移せる。v2 では
+  責務を分けて `createStudyRecord`（学習記録）と `openWordbook`（最終閲覧日時）の 2 つにしている。
 - v1 の「公式／自作で lib を分離」していた事故防止は、v2 では Resolver 認可 + 型分離で担保する。
 - counter_cache / 論理削除 / ユニーク制約 / トランザクションといった **DB・モデル層の防御は API 方式に依存しないため、そのまま維持**する。

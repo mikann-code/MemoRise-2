@@ -7,15 +7,17 @@
 
 ラベル例：`epic` `backend` `frontend` `infra` / 優先度 `P0`(基盤) `P1`(主要) `P2`(仕上げ)
 
-## 進捗（2026-07-05 時点）
+## 進捗（2026-08-08 時点）
 
-- **完了**：#1〜#10（基盤 / データモデル / GraphQL・フロント基盤 / 一般・管理者認証 / 公式単語帳の閲覧 / 自作単語帳・単語の CRUD / 単語テスト / 学習記録の保存と復習タグ）
-  - #2 の補足：`admin_users` テーブルは作らず **`users.role` で管理者判定**にしている（別テーブル化は要決定）。sessions テーブル（DB セッション）を追加。
+- **完了**：#1〜#15（本バックログのエピックは全て消化済み）
+  - #2 の補足：`admin_users` テーブルは作らず **`users.role` で管理者判定**にしている（別テーブル化はしない方針で確定）。sessions テーブル（DB セッション）を追加。
+  - #4 の補足：Route Group は `(public)` / `(auth)` / `(admin)` の 3 つ。設計時の `(semi-auth)` は `(auth)` に統合した。
   - #10 の補足：復習タグの保存は自作単語帳（wordbooks 配下）・公式単語帳（publicWordbooks 配下）ともバックエンド接続済み
     （公式単語帳の単語も `base_tagged_word_mutation.rb` がタグ付けを許可し、同じ復習単語一覧に載る）。ホームのバッジも接続済み。
-    公式単語帳の章の進捗（`completeWordbookProgress`）と学習記録の保存だけはクライアント一時状態のままで、進捗は #13 で接続する。
-- **一部先行**：#14 のうち公式単語帳 CRUD の Mutation（`createAdminWordbook` 等）はバックエンドのみ実装済み（管理画面は未実装）
-- **未着手**：#11〜#13、#15
+  - #13 の補足：公式単語帳の章の進捗（`completeWordbookProgress`）と学習記録の保存もバックエンドへ接続済みで、クライアント一時状態は廃止した。
+  - #15 の補足：本番デプロイは Render（バックエンド）/ Vercel（フロント）/ Neon（DB）で稼働中。
+    残るテストカバレッジ・SEO・ドキュメント整備は **#37「仕上げ残タスク（テストカバレッジ / SEO / ドキュメント）」** へ分離した。
+- **残タスク**：#37（#15 から分離した仕上げ）。以降の機能追加はこのバックログではなく個別 Issue で管理する。
 
 ---
 
@@ -49,7 +51,7 @@
 ## #2 データモデルとマイグレーション
 **P0 / backend** ／ blocked by: #1
 v1 スキーマ（8 テーブル）を Rails で再現する。
-- [ ] `users` / `admin_users` / `wordbooks` / `words` / `study_records` / `study_details` / `user_word_tags` / `user_wordbook_progresses` のマイグレーション
+- [ ] `users` / `wordbooks` / `words` / `study_records` / `study_details` / `user_word_tags` / `user_wordbook_progresses` のマイグレーション（管理者は別テーブルを作らず `users.role` で判定する）
 - [ ] モデル定義・関連（自己参照の親子、counter_cache、論理削除 scope）
 - [ ] ユニーク制約・カスタムバリデーション（user_consistency / correct_not_exceed_count）
 - [ ] `User#update_streak!`・`after_create` 既定単語帳生成などドメインロジック
@@ -66,7 +68,7 @@ v1 スキーマ（8 テーブル）を Rails で再現する。
 **P0 / frontend** ／ blocked by: #3
 - [ ] Apollo Client を一般用 / 管理者用で分離（トークン・キャッシュ空間）
 - [ ] MUI テーマ・CssBaseline・App Router キャッシュ
-- [ ] Route Group レイアウト（`(public)` `(semi-auth)` `(auth)` `(admin)`）と認証ガード
+- [ ] Route Group レイアウト（`(public)` `(auth)` `(admin)`）と認証ガード
 - [ ] 共通 UI（Button / Input / Card / Layout）と GraphQL Codegen パイプライン
 
 ## #5 認証（一般ユーザー）
@@ -139,7 +141,7 @@ v1 スキーマ（8 テーブル）を Rails で再現する。
 > テストは各機能 Issue で随時書く方針（上記 Definition of Done）。ここでは取りこぼしの補完と全体品質を担保する。
 - [ ] テストの抜け漏れ補完・カバレッジ確認、E2E のクリティカルパス通し（ログイン→学習→記録→復習）
 - [ ] SEO（metadata）・フォント・日本語ロケール・JST 最終確認
-- [ ] 本番デプロイ（Kamal / AWS）・ヘルスチェック・CORS 本番設定
+- [ ] 本番デプロイ（Render / Vercel / Neon）・ヘルスチェック・CORS 本番設定
 - [ ] README / docs の最終更新
 
 ---
