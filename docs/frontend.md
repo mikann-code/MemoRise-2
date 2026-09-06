@@ -49,16 +49,17 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 | `common/ui/` | 汎用パーツ | Button / FloatingInput / FormError / JudgeButtons / LoadingSpinner / LoadingContainer / EmptyState / SectionTitle / TestProgress / TestResultSummary |
 | `common/card/` | カード | WordCard / WordbookShelf（単語帳の本棚表示）/ ErrorCard / DailyRecordCard（学習記録 1 日分） |
 | `layout/` | レイアウト | Layout（共通シェル）/ Header / Footer / FormLayout / WordbookListLayout |
-| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / ReviewTagProvider / PublicWordbookTest / WordbookTest / StudyCalendar（学習カレンダー） |
+| `feature/` | Provider・機能ロジック | AuthProvider / AdminAuthProvider / SnackbarProvider / ReviewTagProvider / WordbookTest / StudyCalendar（学習カレンダー） |
 | `home/` | トップ専用 | DailyWord / PublicWordbook / CraftWord / WeeklyStreakCard |
 
 設計指針：
 - **Composition**：`FormLayout` / `WordbookListLayout` は header / form / list 等を ReactNode で受ける Slot 型。幅・余白は `Layout` の main `Container` に一元化し、内側のレイアウトは `width: 100%` で並べるだけにする。
 - **WordCard の共通利用**：`opened` / `review` / `deletable` / `onTagToggle` / `onEdit` / `showTag` の組み合わせで「テスト中（答え伏せ）／結果（開く）／一覧（編集・削除可）」を切り替え、1 コンポーネントを場面ごとに再利用。
+  答えのセルは `opened` に関わらず常にマウントし、伏せている間は `visibility: hidden` + `opacity: 0` + `blur` で隠す（開くとぼかしが晴れる）。2 セル分の幅・高さを最初から確保するので「答えを見る」でカードが跳ねず、`visibility` を併用することで支援技術・テキスト選択・E2E からも隠れる。演出は `prefers-reduced-motion: reduce` で無効化する。
   - q / a の 2 セル flex が基本。アイコン行は両セルの `py` で空けた上部の帯に絶対配置し、テキストと重ねない。
   - **単語テキストは省略しない**（ellipsis・1 行制限は禁止、折り返しで全文表示）。768px 以下はアイコン 3 個を「…」メニューに集約する。
   - `review` の単語はカード枠をオレンジ（`--color-primary`）で強調。
-- **状態の hoisting**：葉コンポーネント（WordCard）は状態を持たず props で受け取り、テスト全体の状態は `PublicWordbookTest` に集約。
+- **状態の hoisting**：葉コンポーネント（WordCard）は状態を持たず props で受け取り、テスト全体の状態は `WordbookTest` に集約。
 - **JudgeButtons の disabled 連動**：「答えを見る」まで正誤判定不可（UI 制約でチートを防止）。
 - Button / FloatingInput 等は **MUI ベースの薄い自作ラッパー**として `common/ui/` に置き、見た目は theme / sx で v1 に寄せる。
 - **復習タグはバックエンド保存**（#10）：`ReviewTagProvider`（wordbooks/layout.tsx と publicWordbooks/layout.tsx に mount）が
@@ -91,21 +92,25 @@ v1 の責務分離を v2 でも維持する（変更単位を小さく保つ）�
 
 ## 5. テスト機能のフロー（v1 のロジックを維持）
 
-1. `useWords`（v2: GraphQL クエリ）の結果をシャッフルしてから `Test` に渡す。シャッフルは `startTransition` で低優先度化し UI をブロックしない。
-2. 「答えを見る」→ 正誤判定。誤答時の復習タグは自動登録しない。結果画面の「間違えた単語 N 件を復習リストに登録」（`useSnackbar().confirm` で確認）で未登録の誤答単語をまとめて `addTaggedWord` する（登録済みになるとボタンは消える）。単語一覧のタグアイコンも付け外し両方向で confirm を挟む（mutation → refetch の反映待ちで未登録に見える誤解を防ぐ）。
+1. ページは GraphQL クエリの結果を `WordbookTest` に渡すだけで、シャッフル（Fisher–Yates）は `WordbookTest` がマウント時に 1 回だけ行う。出題順・出題数はそこで固定し、テスト中のタグ操作による refetch では変わらない。
+2. 「答えを見る」→ 正誤判定。マウス / タップのほか **キーボードでも進められる**（`Space`・`Enter` で答えを見る → `1`・`←` で正解、`2`・`→` で不正解）。キーの左右は画面のボタンの並び（左 = 正解 / 右 = 不正解）に合わせ、答えを開くまで判定キーは効かない（正誤ボタンの `disabled` と同じ制約）。判定ボタンの下に出す操作ヒントは 768px 以下では表示しない。誤答時の復習タグは自動登録しない。結果画面の「間違えた単語 N 件を復習リストに登録」（`useSnackbar().confirm` で確認）で未登録の誤答単語をまとめて `addTaggedWord` する（登録済みになるとボタンは消える）。単語一覧のタグアイコンも付け外し両方向で confirm を挟む（mutation → refetch の反映待ちで未登録に見える誤解を防ぐ）。
    - 結果画面の並びは **スコアのサマリー → 一括操作ボタン → 間違えた単語一覧 → 一覧に戻る**。サマリー（`TestResultSummary`）は学習記録ダッシュボードに寄せた見た目で「N / M 問正解」・正答率バー・正解 / 不正解のタイルを出し、その直下に一括操作を置いて結果からそのまま復習へ回せるようにする。全問正解なら誤答一覧の代わりにその旨を表示する。
    - 復習専用テスト（`wordbookId` なし）の結果画面では、対になる「覚えた単語を外す」を出す。**正解した単語のうちタグが残っているものだけ**を `removeTaggedWord` でまとめて外し（`ReviewTagProvider.removeTags`）、間違えた単語は復習リストに残す。登録側と同じく confirm を挟み、外し終わるとボタンは消える。一括操作は登録・解除のどちらか一方だけが出る。
 3. テスト終了（`currentIndex >= total`）を `useEffect` で検知し、`createStudyRecord`（履歴）と `completeWordbookProgress`（進捗）を発火。
    単語帳の最終閲覧日時（`lastStudied`）はここでは更新しない（単語一覧を開いた時点で `openWordbook` が記録する → §4）。
 4. **冪等性**：`hasPostedRef = useRef(false)` で Strict Mode の二重実行・二重送信を防止。
 
-実装状況：`/wordbooks/[id]/test`（WordbookTest）は #10 で 2〜4 を接続済み
+実装状況：自作単語帳 `/wordbooks/[id]/test` / 復習専用 `/wordbooks/review/test` / 公式単語帳の章
+`/publicWordbooks/.../test` の 3 経路は、いずれも同じ `WordbookTest` を使う（#54 で統合。
+経路差は props で吸収する：`wordbookId` の有無で見出しと結果画面の一括操作を、`completesChapter` で
+章の完了送信の有無を、`backHref` で「一覧に戻る」の遷移先を切り替える）。
+`/wordbooks/[id]/test` は #10 で 2〜4 を接続済み
 （`completeWordbookProgress` は章の解放が対象のため自作単語帳では発火しない）。
 `/wordbooks/review`（復習単語一覧）はタグ付き単語（単語帳横断）を並べ、「今すぐはじめる」で
 `/wordbooks/review/test`（復習専用テスト）へ進む（自作単語帳の 一覧 → テスト と同じ導線。
 ホーム・単語帳一覧の復習バッジは一覧へ飛ぶ）。復習専用テストは復習タグ付き単語を出題し、
 記録は `kind: REVIEW`（単語帳なし）で保存する（通常のテストは `kind: WORDBOOK` + wordbookId）。
-`/publicWordbooks/.../test`（PublicWordbookTest）は復習タグをバックエンド保存（`ReviewTagProvider`）に接続済みで、
+`/publicWordbooks/.../test`（`completesChapter` 指定）は復習タグをバックエンド保存（`ReviewTagProvider`）に接続済みで、
 誤答の一括登録は自作単語帳と同じく復習単語一覧に反映される。完了時は学習記録も保存する
 （`kind: WORDBOOK` + 章の単語帳 ID を wordbookId に渡す。自作単語帳のテストと同じ方式）。
 章の完了（次 Part 解放）もバックエンド保存（`completeWordbookProgress`）に接続済みで、教材トップの解放状態に反映される（→ §3）。
