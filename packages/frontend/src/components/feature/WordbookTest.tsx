@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import DriveFileRenameOutlineOutlinedIcon from "@mui/icons-material/DriveFileRenameOutlineOutlined";
@@ -17,7 +17,9 @@ import { WordCard } from "@/components/common/card";
 import { useReviewTags } from "@/components/feature/ReviewTagProvider";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
 import { useCreateStudyRecordMutation } from "@/graphql/mutations/createStudyRecord";
+import { useCompleteWordbookProgressMutation } from "@/graphql/mutations/completeWordbookProgress";
 import { StudyRecordKind } from "@/gql/graphql";
+import { MOBILE_QUERY } from "@/constants/ui";
 
 type Word = { id: string; question: string; answer: string };
 
@@ -31,25 +33,81 @@ const buttonContentSx = {
   gap: "6px",
 } as const;
 
+// キーボード操作のヒント行。タッチ端末には無意味なので 768px 以下では出さない。
+const keyHintSx = {
+  display: "flex",
+  justifyContent: "center",
+  flexWrap: "wrap",
+  gap: "4px 16px",
+  mt: 1.5,
+  fontSize: 12,
+  color: "var(--color-font-secondary)",
+  [MOBILE_QUERY]: { display: "none" },
+} as const;
+
+const kbdSx = {
+  display: "inline-block",
+  minWidth: 18,
+  px: "5px",
+  mx: "2px",
+  border: "1px solid var(--color-border)",
+  borderBottomWidth: 2,
+  borderRadius: "4px",
+  fontFamily: "var(--font-secondary)",
+  fontSize: 11,
+  lineHeight: "16px",
+  textAlign: "center",
+  color: "var(--color-font-primary)",
+} as const;
+
+/** Fisher–Yates で出題順をシャッフルする（元配列は変えない）。 */
+function shuffle(words: readonly Word[]): Word[] {
+  const copy = [...words];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 type Props = {
-  /** 復習専用テスト（/wordbooks/review/test）では未指定。記録は単語帳なしで保存し、終了後は復習単語一覧へ戻る。 */
+  /**
+   * 出題対象の単語帳 ID（自作単語帳はその単語帳、公式単語帳は章の ID）。
+   * 復習専用テスト（/wordbooks/review/test）では未指定にする。指定の有無で
+   * 見出しと結果画面の一括操作（登録 / 解除）が切り替わる。
+   */
   wordbookId?: string;
-  /** シャッフル済みの出題順（ページ側で startTransition を使って並べ替える）。 */
-  words: Word[];
+  /** 公式単語帳の章のテストで true。完了時に章を完了扱いにして次の Part を解放する。 */
+  completesChapter?: boolean;
+  /** 結果画面の「一覧に戻る」の遷移先。 */
+  backHref: string;
+  /** 出題する単語。シャッフルはこのコンポーネントの中で 1 回だけ行う。 */
+  words: readonly Word[];
 };
 
 /**
- * 自作単語帳の単語テスト本体（v1 の TestBody を踏襲。公式単語帳の PublicWordbookTest と同じ見た目）。
- * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。
+ * 単語テスト本体（v1 の TestBody を踏襲）。自作単語帳 / 復習専用 / 公式単語帳の章の
+ * 3 経路が共通で使う。
+ * 「答えを見る」までは正誤ボタンを disabled にして先読みを防ぐ。キーボードでも進められる
+ * （Space・Enter で答えを見る → 1 / ← で正解、2 / → で不正解。並びは画面のボタンと同じ）。
  * 誤答の復習タグは自動登録せず、結果画面の「間違えた単語を復習リストに登録」（confirm あり）で
  * まとめて登録する（docs/frontend.md §5）。
- * 完了で結果画面（スコアのサマリー → 一括操作 → 間違えた単語一覧）を表示し、学習記録を 1 回だけ保存する
- * （hasPostedRef で Strict Mode の二重実行・二重送信を防止）。
- * wordbookId なしは復習専用テスト（記録は単語帳なし・戻り先は復習単語一覧）。
+ * 完了で結果画面（スコアのサマリー → 一括操作 → 間違えた単語一覧）を表示し、学習記録を 1 回だけ
+ * 保存する（hasPostedRef で Strict Mode の二重実行・二重送信を防止）。completesChapter 指定時は
+ * 章の完了（次 Part 解放）も同じタイミングで 1 回だけ送る。記録・進捗はいずれもベストエフォートで、
+ * 失敗しても結果画面はそのまま表示する（v1 の fire-and-forget を踏襲）。
  * 結果画面の一括操作は wordbookId で役割を分ける：単語帳のテスト（自作・公式）は「登録」だけ、
  * 復習専用テストは対になる「覚えた単語を外す」だけを出し、両方が並ばないようにする。
  */
-export default function WordbookTest({ wordbookId, words }: Props) {
+export default function WordbookTest({
+  wordbookId,
+  completesChapter = false,
+  backHref,
+  words: initial,
+}: Props) {
+  // 出題順はマウント時に 1 回だけ固定する。テスト中にタグ操作の refetch で親から
+  // 新しい words が来ても、出題順・出題数は変えない。
+  const [words] = useState(() => shuffle(initial));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [opened, setOpened] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
@@ -60,6 +118,7 @@ export default function WordbookTest({ wordbookId, words }: Props) {
   const { isTagged, addTags, removeTags, toggleTag } = useReviewTags();
   const { confirm, notify } = useSnackbar();
   const [createStudyRecord] = useCreateStudyRecordMutation();
+  const [completeWordbookProgress] = useCompleteWordbookProgressMutation();
   const hasPostedRef = useRef(false);
 
   const total = words.length;
@@ -69,12 +128,14 @@ export default function WordbookTest({ wordbookId, words }: Props) {
   const finished = currentIndex >= total;
   const currentWord = words[currentIndex];
 
-  // テスト終了を検知して学習記録を 1 回だけ保存する。保存失敗でも結果画面はそのまま
-  // 表示する（記録はベストエフォート。v1 の fire-and-forget を踏襲）。
+  // テスト終了を検知して、学習記録（と公式単語帳なら章の完了）を 1 回だけ送る。
   // 記録の種類は kind で明示する（単語帳ありは WORDBOOK、復習専用テストは REVIEW）。
   useEffect(() => {
     if (!finished || total === 0 || hasPostedRef.current) return;
     hasPostedRef.current = true;
+    if (completesChapter && wordbookId) {
+      completeWordbookProgress({ variables: { wordbookId } }).catch(() => {});
+    }
     createStudyRecord({
       variables: wordbookId
         ? {
@@ -85,27 +146,67 @@ export default function WordbookTest({ wordbookId, words }: Props) {
           }
         : { kind: StudyRecordKind.Review, totalCount: total, correctCount },
     }).catch(() => {});
-  }, [finished, total, correctCount, wordbookId, createStudyRecord]);
+  }, [
+    finished,
+    total,
+    correctCount,
+    wordbookId,
+    completesChapter,
+    createStudyRecord,
+    completeWordbookProgress,
+  ]);
 
-  const goNext = () => {
-    if (currentIndex < total - 1) {
-      setCurrentIndex((prev) => prev + 1);
-      setOpened(false);
-    } else {
-      setCurrentIndex(total);
-    }
-  };
+  const goNext = useCallback(() => {
+    setCurrentIndex((prev) => prev + 1);
+    setOpened(false);
+  }, []);
 
-  const handleCorrect = () => {
+  const handleCorrect = useCallback(() => {
     setCorrectCount((prev) => prev + 1);
     setCorrectWords((prev) => [...prev, currentWord]);
     goNext();
-  };
+  }, [currentWord, goNext]);
 
-  const handleWrong = () => {
+  const handleWrong = useCallback(() => {
     setWrongWords((prev) => [...prev, currentWord]);
     goNext();
-  };
+  }, [currentWord, goNext]);
+
+  // キーボードでも出題を回せるようにする。判定はボタンと同じハンドラを呼ぶだけで、
+  // ロジックは二重に持たない。キーの左右は画面のボタンの並び（左 = 正解 / 右 = 不正解）に合わせる。
+  useEffect(() => {
+    if (finished) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 長押しのリピートと、ショートカット（Ctrl + F 等）には反応しない。
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      // 入力中は横取りしない。
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (target?.isContentEditable) return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key === " " || e.key === "Enter") {
+        // Space の既定動作（ページスクロール）と、フォーカス中のボタンの再発火を止める。
+        e.preventDefault();
+        setOpened(true);
+        return;
+      }
+      // 答えを開くまでは判定させない（ボタンの disabled と同じ制約）。
+      if (!opened) return;
+
+      if (e.key === "1" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        handleCorrect();
+      } else if (e.key === "2" || e.key === "ArrowRight") {
+        e.preventDefault();
+        handleWrong();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [finished, opened, handleCorrect, handleWrong]);
 
   // 結果画面の一括操作の対象。「登録 = 単語帳のテスト（自作・公式）」「解除 = 復習専用テスト」と
   // 役割を分け、どちらも wordbookId の有無で開閉する（結果画面に両方が並ばないようにする）。
@@ -248,13 +349,7 @@ export default function WordbookTest({ wordbookId, words }: Props) {
           )}
 
           <Box sx={{ mt: 2.5 }}>
-            <Button
-              href={
-                wordbookId ? `/wordbooks/${wordbookId}/list` : "/wordbooks/review"
-              }
-              color="#3b82f6"
-              hoverColor="#2563eb"
-            >
+            <Button href={backHref} color="#3b82f6" hoverColor="#2563eb">
               {/* 上のボタンと高さを揃えるため、素のテキストも同じ flex 中央寄せで包む。 */}
               <Box component="span" sx={buttonContentSx}>
                 一覧に戻る
@@ -309,6 +404,33 @@ export default function WordbookTest({ wordbookId, words }: Props) {
             onWrong={handleWrong}
             disabled={!opened}
           />
+        </Box>
+
+        <Box sx={keyHintSx}>
+          <Box component="span">
+            <Box component="kbd" sx={kbdSx}>
+              Space
+            </Box>
+            答えを見る
+          </Box>
+          <Box component="span">
+            <Box component="kbd" sx={kbdSx}>
+              1
+            </Box>
+            <Box component="kbd" sx={kbdSx}>
+              ←
+            </Box>
+            正解
+          </Box>
+          <Box component="span">
+            <Box component="kbd" sx={kbdSx}>
+              2
+            </Box>
+            <Box component="kbd" sx={kbdSx}>
+              →
+            </Box>
+            不正解
+          </Box>
         </Box>
       </Box>
     </Box>

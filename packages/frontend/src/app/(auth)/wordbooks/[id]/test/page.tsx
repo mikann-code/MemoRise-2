@@ -1,24 +1,12 @@
 "use client";
 
-import { startTransition, use, useEffect, useState } from "react";
+import { use } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { Button, LoadingContainer } from "@/components/common/ui";
 import { useMyWordbookQuery } from "@/graphql/queries/myWordbook";
 import WordbookTest from "@/components/feature/WordbookTest";
 import { ANIM_ENTER_MS, ANIM_EASE_OUT } from "@/constants/ui";
-
-type Word = { id: string; question: string; answer: string };
-
-/** Fisher–Yates で出題順をシャッフルする（元配列は変えない）。 */
-function shuffle(words: readonly Word[]): Word[] {
-  const copy = [...words];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
 
 /**
  * テストを開始できないときの案内。スナックバーの確認ダイアログと同じカード見た目
@@ -74,7 +62,7 @@ type Props = {
 
 /**
  * 自作単語帳の単語テスト（v1 の /wordbooks/[id]/test を忠実に再現）。
- * 単語を取得し、シャッフルは startTransition で低優先度化してから WordbookTest に渡す薄いページ。
+ * 単語を取得して WordbookTest に渡すだけの薄いページ（シャッフルは WordbookTest 側で一度だけ行う）。
  */
 export default function WordbookTestPage({ params }: Props) {
   const { id: wordbookId } = use(params);
@@ -83,16 +71,6 @@ export default function WordbookTestPage({ params }: Props) {
     variables: { id: wordbookId },
   });
   const wordbook = data?.myWordbook ?? null;
-  const words = wordbook?.words;
-
-  const [shuffledWords, setShuffledWords] = useState<Word[]>([]);
-
-  useEffect(() => {
-    if (!words || words.length === 0) return;
-    startTransition(() => {
-      setShuffledWords(shuffle(words));
-    });
-  }, [words]);
 
   if (loading && !data) {
     return (
@@ -121,12 +99,11 @@ export default function WordbookTestPage({ params }: Props) {
     return <EmptyState message="単語がありません。" wordbookId={wordbookId} />;
   }
 
-  // startTransition の反映待ち（シャッフル前の順で出題しない）
-  if (shuffledWords.length === 0) {
-    return (
-      <LoadingContainer />
-    );
-  }
-
-  return <WordbookTest wordbookId={wordbookId} words={shuffledWords} />;
+  return (
+    <WordbookTest
+      wordbookId={wordbookId}
+      backHref={`/wordbooks/${wordbookId}/list`}
+      words={wordbook.words}
+    />
+  );
 }

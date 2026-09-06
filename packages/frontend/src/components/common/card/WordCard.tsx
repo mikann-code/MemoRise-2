@@ -13,6 +13,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import BackspaceOutlinedIcon from "@mui/icons-material/BackspaceOutlined";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { useSnackbar } from "@/components/feature/SnackbarProvider";
+import { ANIM_ENTER_MS, ANIM_EASE_OUT } from "@/constants/ui";
 
 /**
  * 単語カード（多場面で再利用する中核部品）。状態は持たず親が制御する：
@@ -23,6 +24,9 @@ import { useSnackbar } from "@/components/feature/SnackbarProvider";
  * deletable 時のみ削除アイコン（スナックバー確認後に onDelete）。
  * 768px 以下ではアイコン群を「…」1 個に集約しメニューから操作する
  * （単語・意味のテキストは省略せず折り返して全文を保つ）。
+ *
+ * 答えのセルは opened に関わらず常にマウントする。伏せている間も 2 セル分の幅と高さを
+ * 確保できるので、「答えを見る」でカードが 1 列 → 2 列に跳ねるレイアウトシフトが起きない。
  */
 type Props = {
   question: string;
@@ -56,6 +60,26 @@ const cellSx = {
 // + top: 8px）の分だけ両セルの padding を上下対称（py）に空け、上側の領域に
 // アイコンを置く。テキストはアイコンと重ならず、セル中央に収まる。
 const iconAreaSx = { py: "36px" };
+
+// 答えの見え方。伏せている間は visibility: hidden で「レイアウトは保ったまま」隠す
+// （opacity だけだと支援技術・テキスト選択・E2E からは見えてしまうため）。
+// 開くときは visibility が即座に切り替わったうえで、ぼかし + フェードで浮かび上がる。
+const answerSx = {
+  transition: `opacity ${ANIM_ENTER_MS}ms ${ANIM_EASE_OUT}, filter ${ANIM_ENTER_MS}ms ${ANIM_EASE_OUT}`,
+  "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+} as const;
+
+const answerHiddenSx = {
+  visibility: "hidden",
+  opacity: 0,
+  filter: "blur(6px)",
+} as const;
+
+const answerShownSx = {
+  visibility: "visible",
+  opacity: 1,
+  filter: "blur(0px)",
+} as const;
 
 export default function WordCard({
   question,
@@ -94,18 +118,22 @@ export default function WordCard({
       <Typography component="div" sx={[cellSx, hasActions && iconAreaSx]}>
         {question}
       </Typography>
-      {opened && (
-        <Typography
-          component="div"
-          sx={[
-            cellSx,
-            hasActions && iconAreaSx,
-            { borderLeft: "1px dashed var(--color-border)" },
-          ]}
+      <Typography
+        component="div"
+        sx={[
+          cellSx,
+          hasActions && iconAreaSx,
+          { borderLeft: "1px dashed var(--color-border)" },
+        ]}
+      >
+        {/* セル自体（枠線・幅）は常に見せ、中身のテキストだけを開閉する。 */}
+        <Box
+          component="span"
+          sx={[answerSx, opened ? answerShownSx : answerHiddenSx]}
         >
           {answer}
-        </Typography>
-      )}
+        </Box>
+      </Typography>
 
       <Box
         sx={{
