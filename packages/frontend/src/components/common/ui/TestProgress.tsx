@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 
 /**
  * テストの進捗表示（「N / M 問目・正答率」＋オレンジ→レッドのグラデーション進捗バー）。
- * WordbookTest / PublicWordbookTest で同一実装だったものを共通化（v1 の <progress> を踏襲）。
+ * WordbookTest から使う（v1 の <progress> を踏襲）。
  * - current / total / rate：上段の表示テキスト
  * - filled：進捗バーの充填量（回答済み数。結果画面では total を渡して満タンにする）
  */

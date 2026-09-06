@@ -6,11 +6,11 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { LoadingContainer } from "@/components/common/ui";
 import { usePublicWordbookChaptersQuery } from "@/graphql/queries/publicWordbookChapters";
-import PublicWordbookTest from "@/components/feature/PublicWordbookTest";
+import WordbookTest from "@/components/feature/WordbookTest";
 
 /**
- * 章（Part）の単語テスト（(auth)）。単語を取得して PublicWordbookTest に渡すだけの薄いページ。
- * v1（memorize）の公式単語帳の章テストを踏襲。シャッフルは PublicWordbookTest 側で一度だけ行う。
+ * 章（Part）の単語テスト（(auth)）。単語を取得して WordbookTest に渡すだけの薄いページ。
+ * v1（memorize）の公式単語帳の章テストを踏襲。シャッフルは WordbookTest 側で一度だけ行う。
  */
 export default function PublicWordbookTestPage() {
   const { parentId, childrenId } = useParams<{
@@ -55,10 +55,11 @@ export default function PublicWordbookTestPage() {
   }
 
   return (
-    <PublicWordbookTest
+    <WordbookTest
       key={childrenId}
-      parentId={parentId}
-      chapterId={childrenId}
+      wordbookId={childrenId}
+      completesChapter
+      backHref={`/publicWordbooks/${parentId}/${childrenId}/list`}
       words={words}
     />
   );

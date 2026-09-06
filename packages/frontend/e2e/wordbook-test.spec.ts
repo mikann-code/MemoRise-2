@@ -156,3 +156,53 @@ test("単語テストを最後まで実行して結果画面を確認できる�
   await page.getByRole("link", { name: "一覧に戻る" }).click();
   await expect(page).toHaveURL(/\/wordbooks\/10\/list$/);
 });
+
+test("キーボードだけで出題を進められる（Space で答え・1 / 2 で判定）", async ({
+  page,
+}) => {
+  await mockGraphql(page);
+
+  await page.goto("/wordbooks/10/test");
+  await expect(page.getByText("1 / 2 問目")).toBeVisible();
+
+  const firstQuestion = (
+    await page.getByText(/^(apple|book)$/).textContent()
+  )?.trim();
+  const first = WORDS.find((w) => w.question === firstQuestion)!;
+
+  // 答えを開く前は判定キーが効かない（正誤ボタンの disabled と同じ制約）
+  await page.keyboard.press("1");
+  await expect(page.getByText("1 / 2 問目")).toBeVisible();
+  await expect(page.getByText(first.answer, { exact: true })).not.toBeVisible();
+
+  // Space で答えが開く
+  await page.keyboard.press("Space");
+  await expect(page.getByText(first.answer, { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "答えを表示中" })).toBeDisabled();
+
+  // 1（= 画面左の「正解」）で次の問題へ進み、正答率に反映される
+  await page.keyboard.press("1");
+  await expect(page.getByText("2 / 2 問目")).toBeVisible();
+  await expect(page.getByText("正答率 100%")).toBeVisible();
+
+  // 2 問目は Enter と矢印キーで操作する（→ = 画面右の「不正解」）
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("ArrowRight");
+
+  await expect(page.getByRole("heading", { name: "テスト結果" })).toBeVisible();
+  await expect(page.getByText("正答率 50%")).toBeVisible();
+  await expect(page.getByText("間違えた単語（1 件）")).toBeVisible();
+});
+
+test("キーボードのヒントは 768px 以下では表示しない", async ({ page }) => {
+  await mockGraphql(page);
+
+  await page.goto("/wordbooks/10/test");
+
+  const hint = page.getByText("Space", { exact: true });
+  await expect(hint).toBeVisible();
+
+  // タッチ端末ではキーボード操作の案内が無意味なので隠す
+  await page.setViewportSize({ width: 375, height: 800 });
+  await expect(hint).not.toBeVisible();
+});
