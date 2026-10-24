@@ -16,13 +16,13 @@ RSpec.describe "GraphQL signUp", type: :request do
   end
 
   def post_sign_up(variables)
-    post "/graphql", params: { query: mutation, variables: variables }
+    post "/graphql", params: { query: mutation, variables: variables }, as: :json
     JSON.parse(response.body)
   end
 
   # 同一セッション（Cookie）で me を引き、ログイン状態を確認する。
   def current_me_email
-    post "/graphql", params: { query: "{ me { email } }" }
+    post "/graphql", params: { query: "{ me { email } }" }, as: :json
     JSON.parse(response.body).dig("data", "me", "email")
   end
 
@@ -50,6 +50,59 @@ RSpec.describe "GraphQL signUp", type: :request do
       user = User.find_by(email: "taro@example.com")
 
       expect(user.wordbooks.pluck(:title)).to eq([ "はじめての単語帳" ])
+    end
+
+    # セッション固定攻撃への備え。登録前から持っていたセッション ID は登録後に使えない。
+    it "登録時にセッション ID を作り直し、登録前の ID ではログイン状態にならない" do
+      # ログアウト（reset_session）で未ログインのセッションを発行させ、その ID を控える。
+      post "/graphql", params: { query: "mutation { logout { success } }" }, as: :json
+      before_sign_up = cookies["_memorise_session"]
+      expect(before_sign_up).to be_present
+
+      post_sign_up(name: "山田太郎", email: "taro@example.com", password: "password123")
+      expect(cookies["_memorise_session"]).not_to eq(before_sign_up)
+      expect(current_me_email).to eq("taro@example.com")
+
+      cookies["_memorise_session"] = before_sign_up
+      expect(current_me_email).to be_nil
+    end
+  end
+
+  # 同じ IP から 1 時間に 10 件まで登録できる（数えるのは登録に成功した件数）。
+  describe "登録件数の制限" do
+    def sign_up_many(times)
+      times.times { |i| post_sign_up(name: "利用者#{i}", email: "user#{i}@example.com", password: "password123") }
+    end
+
+    it "同じ IP から 10 件登録すると、11 件目は errors を返し、ユーザーを作成しない" do
+      sign_up_many(10)
+
+      expect {
+        @json = post_sign_up(name: "山田太郎", email: "taro@example.com", password: "password123")
+      }.not_to change(User, :count)
+
+      expect(@json.dig("data", "signUp", "success")).to be(false)
+      expect(@json.dig("data", "signUp", "errors", 0, "field")).to eq("system")
+      expect(@json.dig("data", "signUp", "errors", 0, "message"))
+        .to eq("試行回数が多すぎます。しばらく時間をおいてから再度お試しください")
+    end
+
+    it "入力エラーで登録できなかった分は数えない" do
+      sign_up_many(9)
+      3.times { post_sign_up(name: "山田太郎", email: "not-an-email", password: "password123") }
+
+      json = post_sign_up(name: "山田太郎", email: "taro@example.com", password: "password123")
+
+      expect(json.dig("data", "signUp", "success")).to be(true)
+    end
+
+    it "1 時間経つと、再び登録できる" do
+      sign_up_many(10)
+
+      travel 1.hour + 1.second do
+        json = post_sign_up(name: "山田太郎", email: "taro@example.com", password: "password123")
+        expect(json.dig("data", "signUp", "success")).to be(true)
+      end
     end
   end
 

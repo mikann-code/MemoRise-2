@@ -173,7 +173,8 @@ flowchart LR
 ## 設計上のこだわり
 
 - **認証は DB セッション（Cookie）方式** — トークンを手動管理せず、`session_id` のみを Cookie に載せ実体は DB（sessions テーブル）に保持。一般ユーザーと管理者で認証スコープ（`current_user` / `current_admin`）を完全分離。
-- **クロスサイト / ITP 対策** — FE と BE が別ドメインのため、本番の Cookie は `SameSite=None; Secure`。さらに iOS/Safari のサードパーティ Cookie ブロック（ITP）を回避するため、`/graphql` を **同一オリジンにプロキシ**してファーストパーティ Cookie 化。
+- **クロスサイト / ITP 対策** — FE と BE が別ドメインのため、当初は本番の Cookie を `SameSite=None; Secure` にしていた。iOS/Safari のサードパーティ Cookie ブロック（ITP）を回避するため `/graphql` を **同一オリジンにプロキシ**してファーストパーティ Cookie 化したので、Cookie は `SameSite=Lax` に戻した。あわせて GraphQL は JSON の POST だけを受け付け、他サイト起点のリクエストを二重に防ぐ。
+- **セキュリティを多層で担保** — ログイン時のセッション ID 再発行、ログイン・新規登録の試行回数制限、GraphQL クエリの深さ・複雑度の上限（本番はイントロスペクション無効）、セキュリティヘッダー、CI での脆弱性チェック。全体像は [docs/backend.md §8](./docs/backend.md#8-セキュリティ方針)。
 - **認可はリソース単位で「存在を教えない」** — 自作単語帳などは `user_id` 引数ではなく `current_user` スコープで引き、他人・対象外・論理削除済みは *not found* として扱う。
 - **mutation は success / errors 方式** — 例外ではなく `{ success, errors: [{ field, message }] }` を返し、フォームは field 名でエラーを引く。
 - **Redis を使わない構成** — セッション・（将来的にキュー / キャッシュ）を PostgreSQL に寄せ、インフラをシンプルに保つ Rails 8 の Solid 系方針。
@@ -187,7 +188,8 @@ flowchart LR
 - **Issue 駆動** — Issue → ブランチ `<種別>/issue-<番号>` → 実装 + テスト同一 PR → 自己レビュー → CI グリーン → Squash merge。
 - **CI（GitHub Actions）** — PR ごとに以下を自動実行（[.github/workflows/ci.yml](./.github/workflows/ci.yml)）。
   - フロント：ESLint → `next build` → Playwright E2E
-  - バック：RuboCop → RSpec
+  - バック：RuboCop → Brakeman → bundler-audit → RSpec
+- **依存の更新** — Dependabot が gem / npm / GitHub Actions / Docker の更新 PR を週 1 回作成（[.github/dependabot.yml](./.github/dependabot.yml)）。
 - **テスト方針**
   - BE：GraphQL は 1 オペレーション 1 spec（`spec/requests/graphql/`）。認可は context 注入で検証。
   - FE：E2E は `page.route("**/graphql")` で GraphQL をモックし、バックエンド非依存で機能単位に検証。

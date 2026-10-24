@@ -3,7 +3,8 @@ module Mutations
   # 一般ユーザー（role: user）のみ受け付け、管理者は別系統（adminLogin）に分離する。
   # 認証失敗は例外ではなく errors 配列で返す（{success, errors} 方式に統一）。
   # メール存在の有無は秘匿し、失敗は原因に関わらず同一メッセージにする（列挙攻撃対策）。
-  # 成功時はセッションへ user_id を載せてログイン状態にする。
+  # 同じメールアドレスで失敗が続いたら一定時間受け付けない（総当たり対策。上限は BaseMutation）。
+  # 成功時はセッション ID を作り直してから user_id を載せ、ログイン状態にする。
   class Login < BaseMutation
     argument :email, String, required: true
     argument :password, String, required: true
@@ -13,13 +14,22 @@ module Mutations
     field :user, Types::UserType, null: true
 
     def resolve(email:, password:)
-      user = User.find_by(email: email.to_s.strip.downcase)
+      email = email.to_s.strip.downcase
+      failures_key = login_failures_key(email)
+
+      if attempts_exceeded?(failures_key, LOGIN_FAILURE_LIMIT)
+        return { success: false, errors: too_many_attempts_errors, user: nil }
+      end
+
+      user = User.find_by(email: email)
 
       unless user&.user? && user.authenticate(password)
+        record_attempt(failures_key, LOGIN_FAILURE_WINDOW)
         return { success: false, errors: invalid_credentials, user: nil }
       end
 
-      session[:user_id] = user.id
+      reset_attempts(failures_key)
+      sign_in(user)
 
       { success: true, errors: [], user: user }
     end
