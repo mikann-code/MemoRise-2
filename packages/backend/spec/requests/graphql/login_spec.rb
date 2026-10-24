@@ -16,12 +16,12 @@ RSpec.describe "GraphQL login", type: :request do
   end
 
   def post_login(variables)
-    post "/graphql", params: { query: mutation, variables: variables }
+    post "/graphql", params: { query: mutation, variables: variables }, as: :json
     JSON.parse(response.body)
   end
 
   def current_me_email
-    post "/graphql", params: { query: "{ me { email } }" }
+    post "/graphql", params: { query: "{ me { email } }" }, as: :json
     JSON.parse(response.body).dig("data", "me", "email")
   end
 
@@ -40,6 +40,78 @@ RSpec.describe "GraphQL login", type: :request do
     it "メールは大小・前後空白を無視して照合する" do
       json = post_login(email: "  TARO@Example.com ", password: "password123")
       expect(json.dig("data", "login", "user", "email")).to eq("taro@example.com")
+    end
+
+    # セッション固定攻撃への備え。ログイン前から持っていたセッション ID はログイン後に使えない。
+    it "ログイン時にセッション ID を作り直し、ログイン前の ID ではログイン状態にならない" do
+      # ログアウト（reset_session）で未ログインのセッションを発行させ、その ID を控える。
+      post "/graphql", params: { query: "mutation { logout { success } }" }, as: :json
+      before_login = cookies["_memorise_session"]
+      expect(before_login).to be_present
+
+      post_login(email: "taro@example.com", password: "password123")
+      expect(cookies["_memorise_session"]).not_to eq(before_login)
+      expect(current_me_email).to eq("taro@example.com")
+
+      cookies["_memorise_session"] = before_login
+      expect(current_me_email).to be_nil
+    end
+  end
+
+  # 同じメールアドレスで 15 分に 10 回失敗すると、一定時間ログインを受け付けない。
+  describe "試行回数の制限" do
+    let!(:user) { create(:user, email: "taro@example.com", password: "password123") }
+
+    def fail_login(times, email: "taro@example.com")
+      times.times { post_login(email: email, password: "wrong-password") }
+    end
+
+    it "10 回失敗すると、正しいパスワードでもログインできない" do
+      fail_login(10)
+
+      json = post_login(email: "taro@example.com", password: "password123")
+
+      expect(json.dig("data", "login", "success")).to be(false)
+      expect(json.dig("data", "login", "errors", 0, "field")).to eq("system")
+      expect(json.dig("data", "login", "errors", 0, "message"))
+        .to eq("試行回数が多すぎます。しばらく時間をおいてから再度お試しください")
+      expect(current_me_email).to be_nil
+    end
+
+    it "9 回の失敗までは、正しいパスワードでログインできる" do
+      fail_login(9)
+
+      json = post_login(email: "taro@example.com", password: "password123")
+
+      expect(json.dig("data", "login", "success")).to be(true)
+    end
+
+    it "15 分経つと、再びログインできる" do
+      fail_login(10)
+
+      travel 15.minutes + 1.second do
+        json = post_login(email: "taro@example.com", password: "password123")
+        expect(json.dig("data", "login", "success")).to be(true)
+      end
+    end
+
+    it "ログインに成功すると失敗回数がリセットされる" do
+      fail_login(9)
+      post_login(email: "taro@example.com", password: "password123")
+      fail_login(9)
+
+      json = post_login(email: "taro@example.com", password: "password123")
+
+      expect(json.dig("data", "login", "success")).to be(true)
+    end
+
+    it "失敗回数はメールアドレスごとに数える" do
+      create(:user, email: "hanako@example.com", password: "password123")
+      fail_login(10, email: "hanako@example.com")
+
+      json = post_login(email: "taro@example.com", password: "password123")
+
+      expect(json.dig("data", "login", "success")).to be(true)
     end
   end
 

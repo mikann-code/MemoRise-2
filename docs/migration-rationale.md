@@ -60,7 +60,7 @@
   - 開発と本番で DB が異なり、差異起因の不具合リスクがある。
   - Render 無料枠のスリープ等の制約。
 - **v2 の選択**：開発・本番ともに **PostgreSQL 16 に統一**し環境差を解消。デプロイは **Vercel（フロント）+ Render（バックエンド）+ Neon（DB）** のマネージド 3 層。DB を Render 純正ではなく Neon にしたのは、Render の無料 PostgreSQL に有効期限があり、DB だけ別サービスに分けたほうが寿命の制約を受けないため。Solid 系（Queue/Cache/Cable）も PostgreSQL に寄せ Redis 不使用を維持。将来的に Kamal + AWS への移行も選択肢として残す。
-- **トレードオフ**：マネージド前提で自前運用の学びは減るが、初期は本番化までの速度とシンプルさを優先。フロント／バックが別ドメインになるため、実際に**認証 Cookie の設計でつまずいた**（本番は `SameSite=None; Secure`、さらに iOS/Safari の ITP 回避のため `/graphql` を Vercel の rewrites で同一オリジンにプロキシしファーストパーティ Cookie 化）。また Render 無料枠はスリープするため、初回アクセスのコールドスタートが残課題。
+- **トレードオフ**：マネージド前提で自前運用の学びは減るが、初期は本番化までの速度とシンプルさを優先。フロント／バックが別ドメインになるため、実際に**認証 Cookie の設計でつまずいた**（当初は本番を `SameSite=None; Secure` にしたが、iOS/Safari の ITP 回避のため `/graphql` を Vercel の rewrites で同一オリジンにプロキシしファーストパーティ Cookie 化。その後、`None` にしておく理由が無くなったので `SameSite=Lax` に戻した）。また Render 無料枠はスリープするため、初回アクセスのコールドスタートが残課題。
 
 ---
 

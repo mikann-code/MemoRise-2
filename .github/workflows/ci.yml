@@ -59,6 +59,9 @@ jobs:
           bundler-cache: true
           working-directory: packages/backend
       - run: bundle exec rubocop
+      # Rails の静的解析（警告があれば失敗）と、gem の既知の脆弱性チェック。
+      - run: bundle exec brakeman --no-pager
+      - run: bundle exec bundler-audit check --update
       # db:prepare は新規 DB に対して db:seed まで実行し、seed の公式単語帳が
       # 「まっさらな DB」を前提とする spec を壊すため、schema ロードのみの db:test:prepare を使う。
       - run: bin/rails db:test:prepare
