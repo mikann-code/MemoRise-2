@@ -15,6 +15,7 @@
 - [主な機能](#主な機能)
 - [技術スタック](#技術スタック)
 - [アーキテクチャ（本番構成）](#アーキテクチャ本番構成)
+- [セキュリティ対策](#セキュリティ対策)
 - [設計上のこだわり](#設計上のこだわり)
 - [開発プロセス](#開発プロセス)
 - [ローカルでの起動](#ローカルでの起動)
@@ -170,11 +171,51 @@ flowchart LR
 
 ---
 
+## セキュリティ対策
+
+リクエストが通る順に、各層で何を守っているかを示します。1 か所に頼らず、層ごとに重ねています。
+
+```mermaid
+flowchart TB
+    U["ブラウザ / スマホ"]
+
+    subgraph FE["Vercel（Next.js）"]
+        F1["セキュリティヘッダー<br/>iframe 埋め込みの禁止<br/>MIME 推測の停止"]
+        F2["/graphql を同一オリジンで<br/>受けて Render へ転送<br/>Cookie は同一サイト扱い"]
+    end
+
+    subgraph BE["Render（Rails API）"]
+        B1["① 入口<br/>HTTPS 強制<br/>CORS ホワイトリスト"]
+        B2["② 受け付ける形式<br/>JSON の POST だけ実行<br/>（それ以外は 415）"]
+        B3["③ セッション<br/>DB セッション（Cookie）<br/>Lax・HttpOnly・Secure"]
+        B4["④ クエリの上限<br/>深さ 10・複雑度 200<br/>本番はスキーマを非公開"]
+        B5["⑤ 認証・認可<br/>一般と管理者を分離<br/>対象外は「見つからない」"]
+        B6["⑥ ログイン・新規登録<br/>セッション ID の再発行<br/>試行回数の制限"]
+    end
+
+    DB[("Neon（PostgreSQL）")]
+
+    subgraph OPS["開発・運用（GitHub）"]
+        C1["CI<br/>RuboCop・Brakeman<br/>bundler-audit・RSpec・E2E"]
+        C2["Dependabot<br/>依存の更新 PR を週 1 回"]
+    end
+
+    U -->|HTTPS| F1 --> F2 --> B1 --> B2 --> B3 --> B4
+    B4 --> B5 & B6
+    B5 & B6 --> DB
+    OPS -.->|PR ごとに検査| BE
+```
+
+- **パスワード**は bcrypt でハッシュ化し、**ログ**からはパスワード・メールなどを除外しています。
+- 各対策の実装箇所と判断の理由は [docs/backend.md §8 セキュリティ方針](./docs/backend.md#8-セキュリティ方針) にまとめています。
+
+---
+
 ## 設計上のこだわり
 
 - **認証は DB セッション（Cookie）方式** — トークンを手動管理せず、`session_id` のみを Cookie に載せ実体は DB（sessions テーブル）に保持。一般ユーザーと管理者で認証スコープ（`current_user` / `current_admin`）を完全分離。
 - **クロスサイト / ITP 対策** — FE と BE が別ドメインのため、当初は本番の Cookie を `SameSite=None; Secure` にしていた。iOS/Safari のサードパーティ Cookie ブロック（ITP）を回避するため `/graphql` を **同一オリジンにプロキシ**してファーストパーティ Cookie 化したので、Cookie は `SameSite=Lax` に戻した。あわせて GraphQL は JSON の POST だけを受け付け、他サイト起点のリクエストを二重に防ぐ。
-- **セキュリティを多層で担保** — ログイン時のセッション ID 再発行、ログイン・新規登録の試行回数制限、GraphQL クエリの深さ・複雑度の上限（本番はイントロスペクション無効）、セキュリティヘッダー、CI での脆弱性チェック。全体像は [docs/backend.md §8](./docs/backend.md#8-セキュリティ方針)。
+- **セキュリティを多層で担保** — ログイン時のセッション ID 再発行、ログイン・新規登録の試行回数制限、GraphQL クエリの深さ・複雑度の上限（本番はイントロスペクション無効）、セキュリティヘッダー、CI での脆弱性チェック。全体像は [セキュリティ対策](#セキュリティ対策) の図と [docs/backend.md §8](./docs/backend.md#8-セキュリティ方針)。
 - **認可はリソース単位で「存在を教えない」** — 自作単語帳などは `user_id` 引数ではなく `current_user` スコープで引き、他人・対象外・論理削除済みは *not found* として扱う。
 - **mutation は success / errors 方式** — 例外ではなく `{ success, errors: [{ field, message }] }` を返し、フォームは field 名でエラーを引く。
 - **Redis を使わない構成** — セッション・（将来的にキュー / キャッシュ）を PostgreSQL に寄せ、インフラをシンプルに保つ Rails 8 の Solid 系方針。
