@@ -14,29 +14,29 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@apollo/client": "^4.0.0",
+    "@apollo/client": "^4.3.5",
     "@emotion/react": "^11.13.0",
     "@emotion/styled": "^11.13.0",
     "@mui/icons-material": "^7.0.0",
     "@mui/material": "^7.0.0",
     "@mui/material-nextjs": "^7.0.0",
     "@mui/x-date-pickers": "^7.0.0",
-    "dayjs": "^1.11.13",
+    "dayjs": "^1.11.23",
     "graphql": "^16.9.0",
-    "next": "^16.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.0",
     "@graphql-codegen/client-preset": "^4.0.0",
-    "@eslint/eslintrc": "^3.0.0",
-    "@playwright/test": "^1.49.0",
+    "@eslint/eslintrc": "^3.3.7",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "^16.0.0",
+    "eslint-config-next": "^16.4.3",
     "typescript": "^5.6.0"
   }
 }
