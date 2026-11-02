@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.0",
-    "@graphql-codegen/client-preset": "^4.0.0",
+    "@graphql-codegen/client-preset": "^6.2.3",
     "@eslint/eslintrc": "^3.0.0",
     "@playwright/test": "^1.49.0",
     "@types/node": "^22.0.0",
