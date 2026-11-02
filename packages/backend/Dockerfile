@@ -1,5 +1,5 @@
 # 開発用 Dockerfile（Rails API サーバー）
-FROM ruby:3.4.5-bookworm
+FROM ruby:4.0.0-bookworm
 
 WORKDIR /app
 
