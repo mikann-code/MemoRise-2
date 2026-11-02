@@ -30,7 +30,7 @@
 | 環境変数 | dotenv-rails | 導入済み |
 | CORS | rack-cors | 導入済み |
 | テスト | RSpec / FactoryBot / shoulda-matchers | 導入済み |
-| 品質・セキュリティ | RuboCop（omakase） / Brakeman / bundler-audit | 導入済み |
+| 品質・セキュリティ | RuboCop（omakase） / Brakeman / bundler-audit（CI で実行） / Dependabot | 導入済み |
 | ジョブ / キャッシュ | Solid Queue / Solid Cache / Solid Cable（PostgreSQL ベース、**Redis 不使用**） | 予定 |
 | ジョブ監視 | Mission Control - Jobs | 予定 |
 | ページネーション | Kaminari | 予定 |

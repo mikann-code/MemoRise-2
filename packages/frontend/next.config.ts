@@ -29,6 +29,26 @@ const nextConfig: NextConfig = {
     if (!backend) return [];
     return [{ source: "/graphql", destination: backend }];
   },
+  // 全ページにセキュリティヘッダーを付ける。他サイトの iframe への埋め込みを禁止し
+  // （frame-ancestors / X-Frame-Options）、MIME タイプの推測・外部へのパス送信・
+  // 使わないブラウザ機能を止める。script-src まで含む CSP は nonce の仕組みが要るため対象外。
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -11,16 +11,16 @@ RSpec.describe "GraphQL logout", type: :request do
         }
       GQL
       variables: { email: user.email, password: "password123" }
-    }
+    }, as: :json
   end
 
   def post_logout
-    post "/graphql", params: { query: "mutation { logout { success } }" }
+    post "/graphql", params: { query: "mutation { logout { success } }" }, as: :json
     JSON.parse(response.body)
   end
 
   def logged_in?
-    post "/graphql", params: { query: "{ me { id } }" }
+    post "/graphql", params: { query: "{ me { id } }" }, as: :json
     !JSON.parse(response.body).dig("data", "me").nil?
   end
 

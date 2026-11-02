@@ -16,12 +16,12 @@ RSpec.describe "GraphQL adminLogin", type: :request do
   end
 
   def post_admin_login(variables)
-    post "/graphql", params: { query: mutation, variables: variables }
+    post "/graphql", params: { query: mutation, variables: variables }, as: :json
     JSON.parse(response.body)
   end
 
   def current_admin_me_email
-    post "/graphql", params: { query: "{ adminMe { email } }" }
+    post "/graphql", params: { query: "{ adminMe { email } }" }, as: :json
     JSON.parse(response.body).dig("data", "adminMe", "email")
   end
 
@@ -41,6 +41,37 @@ RSpec.describe "GraphQL adminLogin", type: :request do
     it "メールは大小・前後空白を無視して照合する" do
       json = post_admin_login(email: "  ADMIN@Example.com ", password: "password123")
       expect(json.dig("data", "adminLogin", "user", "email")).to eq("admin@example.com")
+    end
+
+    # セッション固定攻撃への備え。ログイン前から持っていたセッション ID はログイン後に使えない。
+    it "ログイン時にセッション ID を作り直し、ログイン前の ID ではログイン状態にならない" do
+      # ログアウト（reset_session）で未ログインのセッションを発行させ、その ID を控える。
+      post "/graphql", params: { query: "mutation { logout { success } }" }, as: :json
+      before_login = cookies["_memorise_session"]
+      expect(before_login).to be_present
+
+      post_admin_login(email: "admin@example.com", password: "password123")
+      expect(cookies["_memorise_session"]).not_to eq(before_login)
+      expect(current_admin_me_email).to eq("admin@example.com")
+
+      cookies["_memorise_session"] = before_login
+      expect(current_admin_me_email).to be_nil
+    end
+  end
+
+  # 失敗回数の数え方は login と共通（BaseMutation）。管理者ログインでも効くことを確認する。
+  describe "試行回数の制限" do
+    let!(:admin) { create(:user, :admin, email: "admin@example.com", password: "password123") }
+
+    it "10 回失敗すると、正しいパスワードでもログインできない" do
+      10.times { post_admin_login(email: "admin@example.com", password: "wrong-password") }
+
+      json = post_admin_login(email: "admin@example.com", password: "password123")
+
+      expect(json.dig("data", "adminLogin", "success")).to be(false)
+      expect(json.dig("data", "adminLogin", "errors", 0, "message"))
+        .to eq("試行回数が多すぎます。しばらく時間をおいてから再度お試しください")
+      expect(current_admin_me_email).to be_nil
     end
   end
 

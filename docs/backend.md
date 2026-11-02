@@ -196,8 +196,8 @@ v1 は外部公開 ID に `uuid` を使っていたが、**v2 は `uuid` カラ�
 
 > v1 は JWT（ステートレス）だったが、v2 では即時失効・一元管理のしやすさから **DB セッション**へ変更した（経緯は [migration-rationale.md](./migration-rationale.md) §7）。フロント側の通信は [frontend.md](./frontend.md) §6、Codegen との関係は [graphql.md](./graphql.md) §6 を参照。
 
-- パスワード検証は `bcrypt`（`has_secure_password`）。セッションは `activerecord-session_store`（DB 管理＝`sessions` テーブル。Solid 系と同じく Redis 不使用）。Cookie は `_memorise_session`（`same_site: :lax`、本番のみ `secure`）。
-- `login` / `signUp` Mutation の成功時に `session[:user_id]` を設定し、`logout` Mutation で `reset_session`（`sessions` レコードも破棄）。**トークンは発行・返却しない**。`logout` はログイン状態に関わらず常に成功を返す冪等仕様。
+- パスワード検証は `bcrypt`（`has_secure_password`）。セッションは `activerecord-session_store`（DB 管理＝`sessions` テーブル。Solid 系と同じく Redis 不使用）。Cookie は `_memorise_session`（全環境 `same_site: :lax`、本番のみ `secure`）。
+- `login` / `adminLogin` / `signUp` Mutation の成功時に `reset_session` でセッション ID を作り直してから `session[:user_id]` を設定し、`logout` Mutation で `reset_session`（`sessions` レコードも破棄）。**トークンは発行・返却しない**。`logout` はログイン状態に関わらず常に成功を返す冪等仕様。
 - `GraphqlController` が毎リクエストで `session[:user_id]` から `User` を解決し、`role` で `current_user`（一般）/ `current_admin`（管理者）に振り分けて GraphQL コンテキストに載せる。
 - ログイン失敗時はメール存在の有無を秘匿して同一メッセージ（`UNAUTHORIZED`）を返す。
 - 管理者認証は `adminLogin` / `adminMe` として実装済み。`current_admin` は **単一 `users` テーブルの `role`** から解決する（§2 users）。権限境界は別テーブルではなく Resolver 層の認可で担保する。
@@ -208,7 +208,7 @@ v1 は外部公開 ID に `uuid` を使っていたが、**v2 は `uuid` カラ�
 - **ログフィルタ**：passw / email / secret / token / _key / crypt / salt / certificate / otp / ssn / cvv / cvc を除外。
 - **ロケール**：`config/locales/ja.yml`。タイムゾーン JST。
 - **ヘルスチェック**：`GET /up`（Render のヘルスチェック用）。
-- **品質**：RuboCop（omakase）/ Brakeman / bundler-audit（導入済み）。
+- **品質**：RuboCop（omakase）/ Brakeman / bundler-audit。いずれも CI で実行する（§8）。
 - **画像 / メール**（未導入・予定）：Active Storage + image_processing（S3）、SES v2（メール）。
 - **デプロイ**：本番は **Render**（バックエンド / Docker・起動時に `db:migrate`）・**Vercel**（フロント）・
   **Neon**（PostgreSQL）で稼働中（構成は [tech-stack.md](./tech-stack.md)）。Kamal + AWS へ移す選択肢は
@@ -220,3 +220,26 @@ v1 は外部公開 ID に `uuid` を使っていたが、**v2 は `uuid` カラ�
   責務を分けて `createStudyRecord`（学習記録）と `openWordbook`（最終閲覧日時）の 2 つにしている。
 - v1 の「公式／自作で lib を分離」していた事故防止は、v2 では Resolver 認可 + 型分離で担保する。
 - counter_cache / 論理削除 / ユニーク制約 / トランザクションといった **DB・モデル層の防御は API 方式に依存しないため、そのまま維持**する。
+
+## 8. セキュリティ方針
+
+対策の全体像。個々の実装は各節とコードのコメントを参照。
+
+| 観点 | 対策 | 実装箇所 |
+| --- | --- | --- |
+| パスワード | bcrypt でハッシュ化（`has_secure_password`）。8 文字以上 | `User` |
+| セッション | DB セッション。Cookie には session_id のみを載せ、HttpOnly・本番は Secure。ログイン / 新規登録時は `reset_session` で ID を作り直し（セッション固定攻撃への備え）、ログアウト時はサーバー側のセッションも破棄 | `config/application.rb` / `Mutations::BaseMutation#sign_in` / `Mutations::Logout` |
+| Cookie / クロスサイト | 全環境 `SameSite=Lax`。本番もブラウザからは同一オリジンの `/graphql`（Vercel の rewrites で Render へプロキシ）に送るため、Cookie はファーストパーティで届く。他サイト起点の POST には Cookie を付けない | `config/application.rb` |
+| 受け付ける形式 | GraphQL は `application/json` の POST だけを実行し、それ以外は 415。JSON の POST は CORS のプリフライト対象になり、許可オリジン以外からは送信自体がブロックされる | `GraphqlController#require_json_request` |
+| CORS | `FRONTEND_URL` 等の明示ホワイトリスト（`credentials: true`、ワイルドカード不使用） | `config/initializers/cors.rb` |
+| 認証・認可 | 一般ユーザーと管理者でログイン Mutation とコンテキスト（`current_user` / `current_admin`）を分離。各 Resolver / Mutation の冒頭でガードする（§4 認可方針） | `GraphqlController` / `app/graphql` |
+| 存在を教えない | リソースは `current_user` の範囲だけで引き、他人・対象外・論理削除済みは「見つからない」と同じ扱いにする。ID を推測されても他人のデータには届かない。ログイン失敗はメールの有無に関わらず同一メッセージ | `Resolvers::*` / `Mutations::*` |
+| 試行回数の制限 | ログイン（`login` / `adminLogin`）は同じメールアドレスで 15 分に 10 回失敗すると一時的に受け付けない（成功で回数はリセット）。新規登録は同じ IP から 1 時間に 10 件まで。カウンタは `Rails.cache`（memory_store）の固定ウィンドウ | `Mutations::BaseMutation` / `Mutations::SignUp` |
+| GraphQL クエリの上限 | `max_depth 10` / `max_complexity 200`（フロントの既存オペレーションは最大で深さ 4・複雑度 19）。イントロスペクションは数えず、本番では無効化 | `MemoRiseSchema` |
+| セキュリティヘッダー | フロントの全ページに `frame-ancestors 'none'` / `X-Frame-Options: DENY`（iframe 埋め込みの禁止）、`X-Content-Type-Options` / `Referrer-Policy` / `Permissions-Policy` を付ける。バックエンドは Rails 標準の既定ヘッダー | `packages/frontend/next.config.ts` |
+| 通信 | 本番は HTTPS を強制（`force_ssl`、HSTS 付き） | `config/environments/production.rb` |
+| ログ | パスワード・メール・トークン等をログから除外 | `config/initializers/filter_parameter_logging.rb` |
+| 依存・静的解析 | CI で Brakeman（Rails の静的解析）と bundler-audit（gem の既知の脆弱性）を実行。Dependabot が依存の更新 PR を週 1 回作る | `.github/workflows/ci.yml` / `.github/dependabot.yml` |
+
+- **新規登録の IP について**：本番は Vercel の rewrites 経由で届き、Vercel は利用者から来た `X-Forwarded-For` を上書きして転送する。そのため `request.remote_ip` で取れるのは Vercel 側の IP になる見込みで、新規登録の制限は利用者単位ではなく「プロキシ単位の大まかな上限」として効く。偽装できる値（クライアントが送るヘッダー）には頼らない。
+- **ID**：外部に出る ID は連番（bigint）。推測されても「存在を教えない」認可で他人のデータには届かないため、UUID 化はしていない。

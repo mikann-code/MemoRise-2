@@ -1,0 +1,36 @@
+# 依存パッケージの更新 PR を週 1 回作り、脆弱性の修正版が出たら気付けるようにする。
+# minor / patch はエコシステムごとに 1 本の PR にまとめて、PR の数を抑える。
+version: 2
+updates:
+  # Gemfile.lock はコミットしていないため、Gemfile のバージョン指定の更新が中心になる。
+  - package-ecosystem: bundler
+    directory: /packages/backend
+    schedule:
+      interval: weekly
+    groups:
+      backend-minor-patch:
+        update-types: [minor, patch]
+
+  # CI（npm ci）と Vercel のビルドが使う packages/frontend の lockfile を対象にする。
+  - package-ecosystem: npm
+    directory: /packages/frontend
+    schedule:
+      interval: weekly
+    groups:
+      frontend-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Ruby のバージョンは Gemfile（ruby "3.4.5"）と .github/workflows/ci.yml にもあるので、
+  # ベースイメージの更新 PR をマージするときは 3 か所を揃える。
+  - package-ecosystem: docker
+    directory: /packages/backend
+    schedule:
+      interval: weekly

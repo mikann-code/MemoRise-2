@@ -1,4 +1,8 @@
 class GraphqlController < ApplicationController
+  # フロント（Apollo Client）は常に JSON で送るので、JSON 以外（フォーム形式など）は実行せず 415 を返す。
+  # JSON の POST は CORS のプリフライト対象になり、許可オリジン以外からは送信自体がブロックされる。
+  before_action :require_json_request
+
   def execute
     result = MemoRiseSchema.execute(
       params[:query],
@@ -14,15 +18,21 @@ class GraphqlController < ApplicationController
 
   private
 
+  def require_json_request
+    head :unsupported_media_type unless request.media_type == "application/json"
+  end
+
   # GraphQL 実行コンテキスト。認証スコープ（current_user / current_admin）に加え、
   # ログイン／ログアウト Mutation がセッションを書き換えられるよう session / controller も載せる
   # （session[:user_id] の設定・reset_session に使う。docs/backend.md 参照）。
+  # remote_ip は新規登録の試行回数制限（Mutations::SignUp）のキーに使う。
   def graphql_context
     {
       current_user: current_user,
       current_admin: current_admin,
       session: session,
-      controller: self
+      controller: self,
+      remote_ip: request.remote_ip
     }
   end
 

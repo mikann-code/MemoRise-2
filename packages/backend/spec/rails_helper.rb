@@ -21,8 +21,13 @@ RSpec.configure do |config|
   config.filter_rails_from_backtrace!
 
   config.include FactoryBot::Syntax::Methods
+  # travel / travel_to（時刻を進める・固定する）
+  config.include ActiveSupport::Testing::TimeHelpers
 
   # request spec の既定ホスト（www.example.com）は Rails 8.1 既定の
   # config.hosts（.localhost / .test）に弾かれ 403 になる。許可ホストに固定する。
   config.before(:each, type: :request) { host! "localhost" }
+
+  # 試行回数制限のカウンタ（Rails.cache = memory_store）を spec 間で持ち越さない。
+  config.before { Rails.cache.clear }
 end

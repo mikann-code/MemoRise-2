@@ -47,7 +47,7 @@ npx playwright install   # 初回のみ
 npm run e2e
 ```
 
-CI（GitHub Actions / `.github/workflows/ci.yml`）が PR ごとにフロント（lint/build/e2e）とバック（rubocop/rspec）を自動実行する。`main` は **branch protection** で「PR 必須・CI グリーン必須・直 push 禁止」に設定する（GitHub の Settings → Branches）。
+CI（GitHub Actions / `.github/workflows/ci.yml`）が PR ごとにフロント（lint/build/e2e）とバック（rubocop/brakeman/bundler-audit/rspec）を自動実行する。依存パッケージの更新 PR は Dependabot が週 1 回作る（`.github/dependabot.yml`）。`main` は **branch protection** で「PR 必須・CI グリーン必須・直 push 禁止」に設定する（GitHub の Settings → Branches）。
 
 ## DB リセット（開発時のみ）
 
